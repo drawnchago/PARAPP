@@ -39,15 +39,22 @@
                             @if (n.IsFeatured) { <span class="badge-featured">⭐ Destacada</span> }
                             @if (n.CategoryName != null) { <span class="badge-tipo">@n.CategoryName</span> }
                             @if (!n.IsPublished) { <span class="badge-estado borrador">Borrador</span> }
+                            @if (EsProgramada(n)) { <span class="badge-scheduled">🕒 Programada</span> }
                         </div>
                         <h5 class="news-title">@n.Title</h5>
                         @if (n.Summary != null) { <p class="news-summary">@n.Summary</p> }
                         <div class="news-footer">
                             <small class="text-muted">@n.AuthorName • 👁️ @n.Views</small>
-                            @if (permiso?.PuedeEliminar == true)
-                            {
-                                <button class="btn btn-sm btn-outline-danger" @onclick="() => Eliminar(n.Id)">🗑️</button>
-                            }
+                            <div class="item-actions">
+                                @if (permiso?.PuedeEditar == true)
+                                {
+                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => AbrirEditar(n)">Editar</button>
+                                }
+                                @if (permiso?.PuedeEliminar == true)
+                                {
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => Eliminar(n.Id)">🗑️</button>
+                                }
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -60,7 +67,7 @@
 {
     <div class="modal-overlay" @onclick="CerrarFormulario">
         <div class="modal-card" @onclick:stopPropagation>
-            <h4>Nueva Noticia</h4>
+            <h4>@(editandoId.HasValue ? "Modificar noticia" : "Nueva noticia")</h4>
             <div class="mb-3">
                 <label class="form-label">Título *</label>
                 <input class="form-control" @bind="form.Title" />
@@ -91,6 +98,38 @@
                 <label><input type="checkbox" @bind="form.IsPublished" /> Publicar</label>
                 <label><input type="checkbox" @bind="form.IsFeatured" /> Destacar</label>
             </div>
+            <div class="notification-box">
+                <div class="notification-box-title">🔔 Recordatorio</div>
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="newsNotify" @bind="form.SendNotification" />
+                    <label class="form-check-label" for="newsNotify">Enviar notificación a los usuarios correspondientes</label>
+                </div>
+                <div class="responsive-form-grid">
+                    <div>
+                        <label class="form-label">Publicar o enviar el mensaje</label>
+                        <input type="datetime-local" class="form-control"
+                               value="@FechaInput(form.PublishedAt)"
+                               @onchange="ActualizarFechaPublicacion" />
+                    </div>
+                    @if (form.SendNotification)
+                    {
+                        <div>
+                            <label class="form-label">Recordatorio adicional</label>
+                            <select class="form-select" @bind="form.ReminderMinutes">
+                                <option value="0">Sin recordatorio adicional</option>
+                                <option value="15">15 minutos antes</option>
+                                <option value="30">30 minutos antes</option>
+                                <option value="60">1 hora antes</option>
+                                <option value="180">3 horas antes</option>
+                                <option value="1440">1 día antes</option>
+                                <option value="2880">2 días antes</option>
+                                <option value="10080">1 semana antes</option>
+                            </select>
+                        </div>
+                    }
+                </div>
+                <small class="text-muted d-block mt-2">La notificación respetará las preferencias de eventos, noticias y recordatorios de cada perfil.</small>
+            </div>
 
             @if (errorForm != null) { <div class="alert alert-danger py-2">@errorForm</div> }
 
@@ -111,6 +150,7 @@
     private bool cargando = true, mostrarFormulario, guardando;
     private string? errorForm;
     private NoticiaForm form = new();
+    private uint? editandoId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -128,14 +168,48 @@
         cargando = false;
     }
 
-    private void AbrirFormulario() { form = new(); errorForm = null; mostrarFormulario = true; }
+    private void AbrirFormulario()
+    {
+        editandoId = null;
+        form = new NoticiaForm
+        {
+            PublishedAt = DateTime.Now,
+            SendNotification = true,
+            ReminderMinutes = 0
+        };
+        errorForm = null;
+        mostrarFormulario = true;
+    }
+
+    private void AbrirEditar(NoticiaDto noticia)
+    {
+        editandoId = noticia.Id;
+        form = new NoticiaForm
+        {
+            Title = noticia.Title,
+            Summary = noticia.Summary,
+            Content = noticia.Content,
+            ImageUrl = noticia.ImageUrl,
+            CategoryId = noticia.CategoryId,
+            IsPublished = noticia.IsPublished,
+            IsFeatured = noticia.IsFeatured,
+            PublishedAt = ParseFecha(noticia.PublishedAt) ?? DateTime.Now,
+            SendNotification = true,
+            ReminderMinutes = 0
+        };
+        errorForm = null;
+        mostrarFormulario = true;
+    }
+
     private void CerrarFormulario() => mostrarFormulario = false;
 
     private async Task Guardar()
     {
         if (string.IsNullOrWhiteSpace(form.Title)) { errorForm = "El título es requerido."; return; }
         guardando = true;
-        var r = await Api.CrearNoticiaAsync(form);
+        var r = editandoId.HasValue
+            ? await Api.ActualizarNoticiaAsync(editandoId.Value, form)
+            : await Api.CrearNoticiaAsync(form);
         guardando = false;
         if (r is null) { errorForm = "Error al guardar."; return; }
         mostrarFormulario = false;
@@ -146,4 +220,18 @@
     {
         if (await Api.EliminarNoticiaAsync(id)) await Cargar();
     }
+
+    private void ActualizarFechaPublicacion(ChangeEventArgs e)
+    {
+        form.PublishedAt = DateTime.TryParse(e.Value?.ToString(), out var fecha) ? fecha : null;
+    }
+
+    private static string FechaInput(DateTime? fecha) =>
+        fecha?.ToString("yyyy-MM-ddTHH:mm") ?? "";
+
+    private static DateTime? ParseFecha(string? value) =>
+        DateTime.TryParse(value, out var fecha) ? fecha : null;
+
+    private static bool EsProgramada(NoticiaDto noticia) =>
+        ParseFecha(noticia.PublishedAt) is DateTime fecha && fecha > DateTime.Now;
 }

@@ -38,16 +38,16 @@
                         <div class="color-picker-item">
                             <label class="form-label">Color principal</label>
                             <input type="color" class="form-control form-control-color"
-                                   value="@(parroquia.PrimaryColor ?? "#CC0000")"
+                                   value="@(parroquia.PrimaryColor ?? "#4E342E")"
                                    @onchange="e => parroquia.PrimaryColor = e.Value?.ToString()" />
                         </div>
                         <div class="color-picker-item">
                             <label class="form-label">Color secundario</label>
                             <input type="color" class="form-control form-control-color"
-                                   value="@(parroquia.SecondaryColor ?? "#8B0000")"
+                                   value="@(parroquia.SecondaryColor ?? "#2D1B18")"
                                    @onchange="e => parroquia.SecondaryColor = e.Value?.ToString()" />
                         </div>
-                        <div class="color-preview" style="background: linear-gradient(135deg, @(parroquia.PrimaryColor ?? "#CC0000"), @(parroquia.SecondaryColor ?? "#8B0000"))">
+                        <div class="color-preview" style="background: linear-gradient(135deg, @(parroquia.PrimaryColor ?? "#4E342E"), @(parroquia.SecondaryColor ?? "#2D1B18"))">
                             Vista previa
                         </div>
                     </div>
@@ -64,24 +64,20 @@
                     <label class="form-label">Dirección</label>
                     <input class="form-control" @bind="parroquia.Address" />
                 </div>
-                <div class="row">
-                    <div class="col mb-2">
-                        <label class="form-label">Colonia</label>
-                        <input class="form-control" @bind="parroquia.Neighborhood" />
-                    </div>
-                    <div class="col mb-2">
-                        <label class="form-label">Código postal</label>
-                        <input class="form-control" @bind="parroquia.ZipCode" />
-                    </div>
-                </div>
+                <LocationSelector @key="parroquia.Id"
+                                  @bind-CountryId="parroquia.CountryId"
+                                  @bind-StateId="parroquia.StateId"
+                                  @bind-NeighborhoodId="parroquia.NeighborhoodId"
+                                  NeighborhoodName="@parroquia.Neighborhood"
+                                  OnNeighborhoodSelected="OnParishNeighborhoodSelected" />
                 <div class="row">
                     <div class="col mb-2">
                         <label class="form-label">Ciudad</label>
-                        <input class="form-control" @bind="parroquia.City" />
+                        <input class="form-control" @bind="parroquia.City" readonly />
                     </div>
                     <div class="col mb-2">
-                        <label class="form-label">Estado</label>
-                        <input class="form-control" @bind="parroquia.State" />
+                        <label class="form-label">Código postal</label>
+                        <input class="form-control" @bind="parroquia.ZipCode" readonly />
                     </div>
                 </div>
                 <div class="row">
@@ -130,6 +126,64 @@
                 </button>
                 @if (parroquiaGuardada) { <div class="text-success text-center mt-2">✓ Datos guardados</div> }
             </div>
+        </div>
+    }
+
+    @if (puedeEditarParroquia && parroquia != null)
+    {
+        <div class="pref-section">
+            <div class="pref-section-title">🕒 Horarios de apertura</div>
+            <p class="text-muted small">Configura cuándo está abierta o cerrada la parroquia. Puedes agregar varios bloques en un mismo día.</p>
+
+            <div class="schedule-editor">
+                @foreach (var day in horarios.OrderBy(item => (item.DayOfWeek + 6) % 7))
+                {
+                    <div class="schedule-editor-day">
+                        <div class="schedule-editor-header">
+                            <strong>@day.DayName</strong>
+                            <label class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox"
+                                       checked="@day.IsClosed"
+                                       @onchange="e => CambiarDiaCerrado(day, (bool)e.Value!)" />
+                                <span class="form-check-label">Cerrado</span>
+                            </label>
+                        </div>
+
+                        @if (!day.IsClosed)
+                        {
+                            <div class="schedule-block-list">
+                                @foreach (var block in day.Blocks)
+                                {
+                                    <div class="schedule-block-row">
+                                        <input type="time" class="form-control"
+                                               value="@HoraInput(block.OpenTime)"
+                                               @onchange="e => block.OpenTime = e.Value?.ToString() ?? block.OpenTime" />
+                                        <span>a</span>
+                                        <input type="time" class="form-control"
+                                               value="@HoraInput(block.CloseTime)"
+                                               @onchange="e => block.CloseTime = e.Value?.ToString() ?? block.CloseTime" />
+                                        <button class="btn btn-sm btn-outline-danger"
+                                                title="Quitar bloque"
+                                                @onclick="() => QuitarBloque(day, block)">×</button>
+                                    </div>
+                                }
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary mt-2"
+                                    @onclick="() => AgregarBloque(day)">+ Agregar horario</button>
+                        }
+                        else
+                        {
+                            <div class="closed-day-message">La parroquia permanece cerrada este día.</div>
+                        }
+                    </div>
+                }
+            </div>
+
+            @if (errorHorarios != null) { <div class="alert alert-danger py-2 mt-3">@errorHorarios</div> }
+            <button class="btn btn-primary w-100 mt-3" @onclick="GuardarHorarios" disabled="@guardandoHorarios">
+                @(guardandoHorarios ? "Guardando horarios..." : "Guardar horarios")
+            </button>
+            @if (horariosGuardados) { <div class="text-success text-center mt-2">✓ Horarios guardados</div> }
         </div>
     }
 
@@ -194,13 +248,20 @@
         <div class="pref-section">
             <div class="pref-section-title">🔔 Notificaciones</div>
             <div class="toggle-list">
-                <ToggleRow Label="Push activas"    Value="@prefs.NotifPushActivas"    OnChange="v => { prefs.NotifPushActivas = v;    Guardar(); }" />
-                <ToggleRow Label="Eventos"         Value="@prefs.NotifEventos"         OnChange="v => { prefs.NotifEventos = v;         Guardar(); }" />
-                <ToggleRow Label="Noticias"        Value="@prefs.NotifNoticias"        OnChange="v => { prefs.NotifNoticias = v;        Guardar(); }" />
-                <ToggleRow Label="Recordatorios"   Value="@prefs.NotifRecordatorios"   OnChange="v => { prefs.NotifRecordatorios = v;   Guardar(); }" />
-                <ToggleRow Label="Adoración"       Value="@prefs.NotifAdoracion"       OnChange="v => { prefs.NotifAdoracion = v;       Guardar(); }" />
-                <ToggleRow Label="Sonido"          Value="@prefs.NotifSonido"          OnChange="v => { prefs.NotifSonido = v;          Guardar(); }" />
-                <ToggleRow Label="Vibración"       Value="@prefs.NotifVibracion"       OnChange="v => { prefs.NotifVibracion = v;       Guardar(); }" />
+                @if (esSuperAdmin)
+                {
+                    <ToggleRow Label="Notificaciones del sistema para todos los usuarios"
+                               Value="@prefs.NotifPushActivas"
+                               OnChange="v => { prefs.NotifPushActivas = v; Guardar(); }" />
+                    <small class="text-muted">Control exclusivo del superadministrador.</small>
+                }
+                else
+                {
+                    <ToggleRow Label="Permitir notificaciones" Value="@prefs.NotifPushActivas" OnChange="v => { prefs.NotifPushActivas = v; Guardar(); }" />
+                    <ToggleRow Label="Calendario y eventos" Value="@prefs.NotifEventos" OnChange="v => { prefs.NotifEventos = v; Guardar(); }" />
+                    <ToggleRow Label="Noticias" Value="@prefs.NotifNoticias" OnChange="v => { prefs.NotifNoticias = v; Guardar(); }" />
+                    <ToggleRow Label="Recordatorios" Value="@prefs.NotifRecordatorios" OnChange="v => { prefs.NotifRecordatorios = v; Guardar(); }" />
+                }
             </div>
         </div>
 
@@ -279,14 +340,19 @@
                         <label class="form-label">Dirección</label>
                         <input class="form-control" @bind="perfil.Direccion" />
                     </div>
+                    <LocationSelector @bind-CountryId="perfil.CountryId"
+                                      @bind-StateId="perfil.StateId"
+                                      @bind-NeighborhoodId="perfil.NeighborhoodId"
+                                      NeighborhoodName="@perfil.NeighborhoodName"
+                                      OnNeighborhoodSelected="OnProfileNeighborhoodSelected" />
                     <div class="row">
                         <div class="col mb-2">
                             <label class="form-label">Ciudad</label>
-                            <input class="form-control" @bind="perfil.Ciudad" />
+                            <input class="form-control" @bind="perfil.Ciudad" readonly />
                         </div>
                         <div class="col mb-2">
-                            <label class="form-label">Estado</label>
-                            <input class="form-control" @bind="perfil.Estado" />
+                            <label class="form-label">Código postal</label>
+                            <input class="form-control" @bind="perfil.ZipCode" readonly />
                         </div>
                     </div>
                     <button class="btn btn-primary w-100" @onclick="GuardarPerfil" disabled="@guardandoPerfil">
@@ -343,6 +409,9 @@
     private bool guardandoParroquia, parroquiaGuardada;
     private List<ParroquiaDto> parroquias = [];
     private uint parroquiaSelId;
+    private List<ParishScheduleDayDto> horarios = [];
+    private bool guardandoHorarios, horariosGuardados;
+    private string? errorHorarios;
 
     // Mis datos + contraseña
     private PerfilDto? perfil;
@@ -409,6 +478,9 @@
             parroquia = await Api.GetMiParroquiaAsync();
         }
 
+        if (parroquia is not null)
+            await CargarHorarios(parroquia.Id);
+
         perfil = await Api.GetMiPerfilAsync();
 
         await Cargar();
@@ -424,6 +496,8 @@
             LastName    = perfil.Apellido,
             MobilePhone = perfil.Telefono,
             Address     = perfil.Direccion,
+            StateId     = perfil.StateId,
+            NeighborhoodId = perfil.NeighborhoodId,
             City        = perfil.Ciudad,
             State       = perfil.Estado
         });
@@ -463,21 +537,96 @@
         else { errorPass = err; }
     }
 
-    private void OnParroquiaSeleccionada(ChangeEventArgs e)
+    private async Task OnParroquiaSeleccionada(ChangeEventArgs e)
     {
         if (uint.TryParse(e.Value?.ToString(), out var id))
         {
             parroquiaSelId = id;
             parroquia = parroquias.FirstOrDefault(p => p.Id == id);
+            await CargarHorarios(id);
         }
+    }
+
+    private async Task CargarHorarios(uint parishId)
+    {
+        horarios = await Api.GetParishSchedulesAsync(parishId);
+        if (horarios.Count == 0)
+        {
+            horarios = Enumerable.Range(0, 7).Select(day => new ParishScheduleDayDto
+            {
+                DayOfWeek = (byte)day,
+                DayName = NombreDia((byte)day),
+                IsClosed = true
+            }).ToList();
+        }
+    }
+
+    private static string NombreDia(byte day) => day switch
+    {
+        0 => "Domingo", 1 => "Lunes", 2 => "Martes", 3 => "Miércoles",
+        4 => "Jueves", 5 => "Viernes", 6 => "Sábado", _ => ""
+    };
+
+    private static string HoraInput(string value) =>
+        TimeOnly.TryParse(value, out var time) ? time.ToString("HH:mm") : value;
+
+    private static void CambiarDiaCerrado(ParishScheduleDayDto day, bool closed)
+    {
+        day.IsClosed = closed;
+        if (closed) day.Blocks.Clear();
+        else if (day.Blocks.Count == 0)
+            day.Blocks.Add(new ParishScheduleBlockDto { OpenTime = "09:00", CloseTime = "13:00" });
+    }
+
+    private static void AgregarBloque(ParishScheduleDayDto day) =>
+        day.Blocks.Add(new ParishScheduleBlockDto { OpenTime = "09:00", CloseTime = "13:00" });
+
+    private static void QuitarBloque(ParishScheduleDayDto day, ParishScheduleBlockDto block) =>
+        day.Blocks.Remove(block);
+
+    private async Task GuardarHorarios()
+    {
+        if (parroquia is null) return;
+        errorHorarios = null;
+        horariosGuardados = false;
+
+        var invalid = horarios.FirstOrDefault(day =>
+            !day.IsClosed && (day.Blocks.Count == 0 || day.Blocks.Any(block =>
+                !TimeOnly.TryParse(block.OpenTime, out var open) ||
+                !TimeOnly.TryParse(block.CloseTime, out var close) ||
+                open >= close)));
+        if (invalid is not null)
+        {
+            errorHorarios = $"Revisa los horarios de {invalid.DayName}.";
+            return;
+        }
+
+        guardandoHorarios = true;
+        var result = await Api.SaveParishSchedulesAsync(
+            parroquia.Id,
+            new ParishScheduleRequest { Days = horarios });
+        guardandoHorarios = false;
+
+        if (result is null)
+        {
+            errorHorarios = "No se pudieron guardar los horarios.";
+            return;
+        }
+
+        horarios = result;
+        horariosGuardados = true;
+        StateHasChanged();
+        await Task.Delay(2500);
+        horariosGuardados = false;
+        StateHasChanged();
     }
 
     private async Task AplicarColorPreview()
     {
         if (parroquia is null) return;
         await JS.InvokeVoidAsync("aplicarColorParroquia",
-            parroquia.PrimaryColor ?? "#CC0000",
-            parroquia.SecondaryColor ?? "#8B0000");
+            parroquia.PrimaryColor ?? "#4E342E",
+            parroquia.SecondaryColor ?? "#2D1B18");
     }
 
     private async Task GuardarParroquia()
@@ -498,6 +647,8 @@
             email          = parroquia.Email,
             logoUrl        = parroquia.LogoUrl,
             description    = parroquia.Description,
+            stateId        = parroquia.StateId,
+            neighborhoodId = parroquia.NeighborhoodId,
             primaryColor   = parroquia.PrimaryColor,
             secondaryColor = parroquia.SecondaryColor
         };
@@ -521,8 +672,8 @@
             if (!esSuperAdmin || parroquia.Id == Session.Session!.Usuario.ParishId)
             {
                 await JS.InvokeVoidAsync("aplicarColorParroquia",
-                    parroquia.PrimaryColor ?? "#CC0000",
-                    parroquia.SecondaryColor ?? "#8B0000");
+                    parroquia.PrimaryColor ?? "#4E342E",
+                    parroquia.SecondaryColor ?? "#2D1B18");
             }
 
             parroquiaGuardada = true;
@@ -599,5 +750,23 @@
         await Task.Delay(2500);
         savedOk = false;
         StateHasChanged();
+    }
+
+    private Task OnParishNeighborhoodSelected(NeighborhoodCatalogDto? neighborhood)
+    {
+        if (parroquia is null) return Task.CompletedTask;
+        parroquia.Neighborhood = neighborhood?.Name;
+        parroquia.ZipCode = neighborhood?.PostalCode;
+        parroquia.City = neighborhood?.City ?? neighborhood?.Municipality;
+        return Task.CompletedTask;
+    }
+
+    private Task OnProfileNeighborhoodSelected(NeighborhoodCatalogDto? neighborhood)
+    {
+        if (perfil is null) return Task.CompletedTask;
+        perfil.NeighborhoodName = neighborhood?.Name;
+        perfil.ZipCode = neighborhood?.PostalCode;
+        perfil.Ciudad = neighborhood?.City ?? neighborhood?.Municipality;
+        return Task.CompletedTask;
     }
 }

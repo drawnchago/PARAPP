@@ -223,6 +223,14 @@ namespace PsilmtyApp.Models
         public string Correo { get; set; } = "";
         public string? Telefono { get; set; }
         public string? FotoUrl { get; set; }
+        public string? Address { get; set; }
+        public string? ZipCode { get; set; }
+        public string? City { get; set; }
+        public uint? CountryId { get; set; }
+        public uint? StateId { get; set; }
+        public uint? NeighborhoodId { get; set; }
+        public string? StateName { get; set; }
+        public string? NeighborhoodName { get; set; }
         public bool Activo { get; set; }
         public int ParishId { get; set; }
         public string? ParishName { get; set; }
@@ -250,6 +258,12 @@ namespace PsilmtyApp.Models
         public string Gender { get; set; } = "unspecified";
         public string RoleName { get; set; } = "parishioner";
         public int? ParishId { get; set; }
+        public string? Address { get; set; }
+        public uint? CountryId { get; set; }
+        public uint? StateId { get; set; }
+        public uint? NeighborhoodId { get; set; }
+        public string? ZipCode { get; set; }
+        public string? City { get; set; }
     }
 
     // ── Permisos ─────────────────────────────────────────────
@@ -347,10 +361,34 @@ namespace PsilmtyApp.Models
         public string? PrimaryColor { get; set; }
         public string? SecondaryColor { get; set; }
         public bool IsActive { get; set; }
+        public uint? CountryId { get; set; }
+        public uint? StateId { get; set; }
+        public uint? NeighborhoodId { get; set; }
 
         // alias para código previo (filtros en Usuarios.razor)
         public string Nombre => Name;
         public string Ciudad => City ?? "";
+    }
+
+    public class ParishScheduleDayDto
+    {
+        public byte DayOfWeek { get; set; }
+        public string DayName { get; set; } = "";
+        public bool IsClosed { get; set; }
+        public string? Notes { get; set; }
+        public List<ParishScheduleBlockDto> Blocks { get; set; } = [];
+    }
+
+    public class ParishScheduleBlockDto
+    {
+        public uint Id { get; set; }
+        public string OpenTime { get; set; } = "09:00";
+        public string CloseTime { get; set; } = "13:00";
+    }
+
+    public class ParishScheduleRequest
+    {
+        public List<ParishScheduleDayDto> Days { get; set; } = [];
     }
 
     // ── Registro público de feligrés ──────────────────────────
@@ -363,6 +401,9 @@ namespace PsilmtyApp.Models
         public string? LogoUrl { get; set; }
         public string? PrimaryColor { get; set; }
         public string? SecondaryColor { get; set; }
+        public uint? CountryId { get; set; }
+        public uint? StateId { get; set; }
+        public uint? NeighborhoodId { get; set; }
         public string Display => string.IsNullOrEmpty(City) ? Name : $"{Name} — {City}";
     }
 
@@ -378,6 +419,9 @@ namespace PsilmtyApp.Models
         public string? MobilePhone { get; set; }
         public string? Address { get; set; }
         public string? Neighborhood { get; set; }
+        public uint? CountryId { get; set; }
+        public uint? StateId { get; set; }
+        public uint? NeighborhoodId { get; set; }
         public string? ZipCode { get; set; }
         public string? City { get; set; }
         public string? State { get; set; }
@@ -405,6 +449,11 @@ namespace PsilmtyApp.Models
         public string? Ciudad { get; set; }
         public string? Estado { get; set; }
         public string? ParishName { get; set; }
+        public string? ZipCode { get; set; }
+        public uint? CountryId { get; set; }
+        public uint? StateId { get; set; }
+        public uint? NeighborhoodId { get; set; }
+        public string? NeighborhoodName { get; set; }
     }
 
     public class ActualizarPerfilRequest
@@ -415,9 +464,85 @@ namespace PsilmtyApp.Models
         public string? MobilePhone { get; set; }
         public string? Address { get; set; }
         public string? Neighborhood { get; set; }
+        public uint? StateId { get; set; }
+        public uint? NeighborhoodId { get; set; }
         public string? ZipCode { get; set; }
         public string? City { get; set; }
         public string? State { get; set; }
+    }
+
+    public class CountryDto
+    {
+        public uint Id { get; set; }
+        public string Code { get; set; } = "";
+        public string Name { get; set; } = "";
+        public bool IsActive { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+    }
+
+    public class StateCatalogDto
+    {
+        public uint Id { get; set; }
+        public uint CountryId { get; set; }
+        public string Code { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string CountryName { get; set; } = "";
+        public bool IsActive { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+    }
+
+    public class NeighborhoodCatalogDto
+    {
+        public uint Id { get; set; }
+        public uint StateId { get; set; }
+        public string PostalCode { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string? SettlementType { get; set; }
+        public string? Municipality { get; set; }
+        public string? City { get; set; }
+        public string Display { get; set; } = "";
+        public string StateName { get; set; } = "";
+        public string CountryName { get; set; } = "";
+        public string? PostalStateCode { get; set; }
+        public string? MunicipalityCode { get; set; }
+        public string? SettlementCode { get; set; }
+        public string? Zone { get; set; }
+        public bool IsActive { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+    }
+
+    public class CountryCatalogForm
+    {
+        public string Code { get; set; } = "";
+        public string Name { get; set; } = "";
+        public bool IsActive { get; set; } = true;
+    }
+
+    public class StateCatalogForm
+    {
+        public uint CountryId { get; set; }
+        public string Code { get; set; } = "";
+        public string Name { get; set; } = "";
+        public bool IsActive { get; set; } = true;
+    }
+
+    public class NeighborhoodCatalogForm
+    {
+        public uint CountryId { get; set; }
+        public uint StateId { get; set; }
+        public string PostalCode { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string? SettlementType { get; set; }
+        public string? Municipality { get; set; }
+        public string? City { get; set; }
+        public string? PostalStateCode { get; set; }
+        public string? MunicipalityCode { get; set; }
+        public string? SettlementCode { get; set; }
+        public string? Zone { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 
     public class CambiarPasswordRequest
@@ -453,6 +578,9 @@ namespace PsilmtyApp.Models
         public int? CategoryId { get; set; }
         public bool IsPublished { get; set; }
         public bool IsFeatured { get; set; }
+        public DateTime? PublishedAt { get; set; }
+        public bool SendNotification { get; set; }
+        public int ReminderMinutes { get; set; } = 60;
     }
 
     public class CategoriaDto
@@ -468,7 +596,7 @@ namespace PsilmtyApp.Models
         public uint Id { get; set; }
         public string Title { get; set; } = "";
         public string? Description { get; set; }
-        public string Color { get; set; } = "#CC0000";
+        public string Color { get; set; } = "#4E342E";
         public string StartDatetime { get; set; } = "";
         public string EndDatetime { get; set; } = "";
         public bool AllDay { get; set; }
@@ -481,12 +609,14 @@ namespace PsilmtyApp.Models
     {
         public string Title { get; set; } = "";
         public string? Description { get; set; }
-        public string Color { get; set; } = "#CC0000";
+        public string Color { get; set; } = "#4E342E";
         public DateTime StartDatetime { get; set; } = DateTime.Now;
         public DateTime EndDatetime { get; set; } = DateTime.Now.AddHours(1);
         public bool AllDay { get; set; }
         public string Type { get; set; } = "event";
         public string? Location { get; set; }
+        public int ReminderMinutes { get; set; } = 60;
+        public bool SendNotification { get; set; }
     }
 
     // ── Sacramentos ───────────────────────────────────────────

@@ -125,6 +125,25 @@
                 </div>
             </div>
             <div class="mb-3">
+                <label class="form-label">Dirección</label>
+                <input class="form-control" @bind="form.Address" />
+            </div>
+            <LocationSelector @bind-CountryId="form.CountryId"
+                              @bind-StateId="form.StateId"
+                              @bind-NeighborhoodId="form.NeighborhoodId"
+                              NeighborhoodName="@editando?.NeighborhoodName"
+                              OnNeighborhoodSelected="OnUserNeighborhoodSelected" />
+            <div class="row mb-3 mt-2">
+                <div class="col">
+                    <label class="form-label">Ciudad</label>
+                    <input class="form-control" @bind="form.City" readonly />
+                </div>
+                <div class="col">
+                    <label class="form-label">Código postal</label>
+                    <input class="form-control" @bind="form.ZipCode" readonly />
+                </div>
+            </div>
+            <div class="mb-3">
                 <label class="form-label">Rol inicial</label>
                 <select class="form-select" @bind="form.RoleName">
                     @foreach (var r in roles)
@@ -209,7 +228,13 @@
             SecondLastName = u.Apellido2,
             Email          = u.Correo,
             MobilePhone    = u.Telefono ?? "",
-            RoleName       = u.Roles.FirstOrDefault() ?? "parishioner"
+            RoleName       = u.Roles.FirstOrDefault() ?? "parishioner",
+            Address        = u.Address,
+            CountryId      = u.CountryId,
+            StateId        = u.StateId,
+            NeighborhoodId = u.NeighborhoodId,
+            ZipCode        = u.ZipCode,
+            City           = u.City
         };
         errorForm = null;
         mostrarFormulario = true;
@@ -225,6 +250,8 @@
         { errorForm = "El correo es requerido."; return; }
         if (editando is null && string.IsNullOrWhiteSpace(form.Password))
         { errorForm = "La contraseña es requerida."; return; }
+        if (!form.StateId.HasValue)
+        { errorForm = "Selecciona el estado."; return; }
 
         guardando = true;
         bool ok;
@@ -240,4 +267,11 @@
     }
 
     private void VerPermisos(uint id) => Nav.NavigateTo($"/permisos?userId={id}");
+
+    private Task OnUserNeighborhoodSelected(NeighborhoodCatalogDto? neighborhood)
+    {
+        form.ZipCode = neighborhood?.PostalCode;
+        form.City = neighborhood?.City ?? neighborhood?.Municipality;
+        return Task.CompletedTask;
+    }
 }

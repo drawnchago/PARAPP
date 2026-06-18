@@ -1,0 +1,4 @@
+interface:
+  display_name: "Psilmty API Backend"
+  short_description: "Build structured Psilmty .NET API modules"
+  default_prompt: "Use $psilmty-api-backend to add or update a backend module following the PsilmtyApi architecture."

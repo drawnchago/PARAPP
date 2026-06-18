@@ -1,3 +1,6 @@
 <Solution>
-  <Project Path="PsilmtyApp/PsilmtyApp.csproj" />
+  <Project Path="PsilmtyApi/PsilmtyApi.csproj" Id="e9cc8cd1-402f-40e0-9c49-d75508721de0" />
+  <Project Path="PsilmtyApp/PsilmtyApp.csproj">
+    <Deploy Solution="Debug|*" />
+  </Project>
 </Solution>

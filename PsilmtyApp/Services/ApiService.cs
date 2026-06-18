@@ -174,6 +174,99 @@ namespace PsilmtyApp.Services
             return r.IsSuccessStatusCode ? await r.Content.ReadFromJsonAsync<ParroquiaDto>(JsonOpts) : null;
         }
 
+        public async Task<List<ParishScheduleDayDto>> GetParishSchedulesAsync(uint parishId)
+        {
+            SetAuth();
+            try
+            {
+                return await http.GetFromJsonAsync<List<ParishScheduleDayDto>>(
+                    $"api/parroquias/{parishId}/horarios", JsonOpts) ?? [];
+            }
+            catch { return []; }
+        }
+
+        public async Task<List<CountryDto>> GetCountriesAsync()
+        {
+            try { return await http.GetFromJsonAsync<List<CountryDto>>("api/catalogos/paises", JsonOpts) ?? []; }
+            catch { return []; }
+        }
+
+        public async Task<List<StateCatalogDto>> GetStatesAsync(uint countryId)
+        {
+            try { return await http.GetFromJsonAsync<List<StateCatalogDto>>($"api/catalogos/estados?countryId={countryId}", JsonOpts) ?? []; }
+            catch { return []; }
+        }
+
+        public async Task<List<NeighborhoodCatalogDto>> GetNeighborhoodsAsync(
+            uint stateId,
+            string query = "",
+            string postalCode = "")
+        {
+            try
+            {
+                var url = $"api/catalogos/colonias?stateId={stateId}&q={Uri.EscapeDataString(query)}&postalCode={Uri.EscapeDataString(postalCode)}";
+                return await http.GetFromJsonAsync<List<NeighborhoodCatalogDto>>(url, JsonOpts) ?? [];
+            }
+            catch { return []; }
+        }
+
+        public async Task<List<CountryDto>> GetAdminCountriesAsync(string query = "")
+        {
+            SetAuth();
+            return await GetListAsync<CountryDto>($"api/catalogos/admin/paises?q={Uri.EscapeDataString(query)}&includeInactive=true");
+        }
+
+        public Task<CountryDto?> CreateCountryAsync(CountryCatalogForm form) =>
+            PostAsync<CountryDto>("api/catalogos/admin/paises", form);
+        public Task<CountryDto?> UpdateCountryAsync(uint id, CountryCatalogForm form) =>
+            PutAsync<CountryDto>($"api/catalogos/admin/paises/{id}", form);
+        public Task<bool> DeactivateCountryAsync(uint id) =>
+            DeleteAsync($"api/catalogos/admin/paises/{id}");
+
+        public async Task<List<StateCatalogDto>> GetAdminStatesAsync(uint? countryId, string query = "")
+        {
+            SetAuth();
+            var country = countryId.HasValue ? countryId.Value.ToString() : "";
+            return await GetListAsync<StateCatalogDto>(
+                $"api/catalogos/admin/estados?countryId={country}&q={Uri.EscapeDataString(query)}&includeInactive=true");
+        }
+
+        public Task<StateCatalogDto?> CreateStateAsync(StateCatalogForm form) =>
+            PostAsync<StateCatalogDto>("api/catalogos/admin/estados", form);
+        public Task<StateCatalogDto?> UpdateStateAsync(uint id, StateCatalogForm form) =>
+            PutAsync<StateCatalogDto>($"api/catalogos/admin/estados/{id}", form);
+        public Task<bool> DeactivateStateAsync(uint id) =>
+            DeleteAsync($"api/catalogos/admin/estados/{id}");
+
+        public async Task<List<NeighborhoodCatalogDto>> GetAdminNeighborhoodsAsync(
+            uint? stateId,
+            string query = "",
+            string postalCode = "")
+        {
+            SetAuth();
+            var state = stateId.HasValue ? stateId.Value.ToString() : "";
+            return await GetListAsync<NeighborhoodCatalogDto>(
+                $"api/catalogos/admin/colonias?stateId={state}&q={Uri.EscapeDataString(query)}&postalCode={Uri.EscapeDataString(postalCode)}&includeInactive=true");
+        }
+
+        public Task<NeighborhoodCatalogDto?> CreateNeighborhoodAsync(NeighborhoodCatalogForm form) =>
+            PostAsync<NeighborhoodCatalogDto>("api/catalogos/admin/colonias", form);
+        public Task<NeighborhoodCatalogDto?> UpdateNeighborhoodAsync(uint id, NeighborhoodCatalogForm form) =>
+            PutAsync<NeighborhoodCatalogDto>($"api/catalogos/admin/colonias/{id}", form);
+        public Task<bool> DeactivateNeighborhoodAsync(uint id) =>
+            DeleteAsync($"api/catalogos/admin/colonias/{id}");
+
+        public async Task<List<ParishScheduleDayDto>?> SaveParishSchedulesAsync(
+            uint parishId,
+            ParishScheduleRequest request)
+        {
+            SetAuth();
+            var response = await http.PutAsJsonAsync($"api/parroquias/{parishId}/horarios", request);
+            return response.IsSuccessStatusCode
+                ? await response.Content.ReadFromJsonAsync<List<ParishScheduleDayDto>>(JsonOpts)
+                : null;
+        }
+
         /// <summary>Sube un logo de parroquia. Devuelve (urlLogo, error).</summary>
         public async Task<(string? url, string? error)> SubirLogoParroquiaAsync(Stream archivo, string nombre, uint? parishId)
         {
@@ -427,6 +520,7 @@ namespace PsilmtyApp.Services
         public Task<List<CalendarioDto>> GetCalendarioAsync(string type = "")
             => GetListAsync<CalendarioDto>($"api/calendario?type={type}");
         public Task<CalendarioDto?> CrearCalendarioAsync(object f) => PostAsync<CalendarioDto>("api/calendario", f);
+        public Task<CalendarioDto?> ActualizarCalendarioAsync(uint id, object f) => PutAsync<CalendarioDto>($"api/calendario/{id}", f);
         public Task<bool> EliminarCalendarioAsync(uint id) => DeleteAsync($"api/calendario/{id}");
 
         // ── Sacramentos ──────────────────────────────────────

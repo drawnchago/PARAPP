@@ -1,5 +1,6 @@
 @page "/"
 @inject SessionService Session
+@inject ApiService Api
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
@@ -22,6 +23,43 @@
                 else                      { <span class="role-badge member">Feligrés</span> }
             </div>
         </div>
+
+        @if (horarios.Any())
+        {
+            <section class="parish-schedule-card">
+                <div class="schedule-card-header">
+                    <span class="schedule-card-icon">🕒</span>
+                    <div>
+                        <h3>Horarios de la parroquia</h3>
+                        <small>@u.ParishName</small>
+                    </div>
+                </div>
+                <div class="schedule-week">
+                    @foreach (var day in HorariosOrdenados())
+                    {
+                        <div class="schedule-day @(EsHoy(day.DayOfWeek) ? "today" : "")">
+                            <div class="schedule-day-name">
+                                @day.DayName
+                                @if (EsHoy(day.DayOfWeek)) { <span class="today-badge">Hoy</span> }
+                            </div>
+                            <div class="schedule-day-hours">
+                                @if (day.IsClosed || !day.Blocks.Any())
+                                {
+                                    <span class="closed-label">Cerrado</span>
+                                }
+                                else
+                                {
+                                    @foreach (var block in day.Blocks)
+                                    {
+                                        <span>@FormatTime(block.OpenTime) - @FormatTime(block.CloseTime)</span>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
 
         <div class="home-hint">
             @if (Session.Session.Modulos.Any(m => m.PuedeVer && !string.IsNullOrEmpty(m.Ruta)))
@@ -50,10 +88,35 @@
 }
 
 @code {
-    protected override void OnInitialized()
+    private List<ParishScheduleDayDto> horarios = [];
+
+    protected override async Task OnInitializedAsync()
     {
         if (!Session.IsAuthenticated)
+        {
             Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        var parishId = (uint)Math.Max(0, Session.Session!.Usuario.ParishId);
+        if (parishId > 0)
+            horarios = await Api.GetParishSchedulesAsync(parishId);
+    }
+
+    private IEnumerable<ParishScheduleDayDto> HorariosOrdenados()
+    {
+        var today = (byte)DateTime.Now.DayOfWeek;
+        return horarios.OrderBy(day => (day.DayOfWeek - today + 7) % 7);
+    }
+
+    private static bool EsHoy(byte day) => day == (byte)DateTime.Now.DayOfWeek;
+
+    private static string FormatTime(string value)
+    {
+        if (!TimeOnly.TryParse(value, out var time)) return value;
+        var hour = time.Hour % 12 == 0 ? 12 : time.Hour % 12;
+        var minutes = time.Minute == 0 ? "" : $":{time.Minute:00}";
+        return $"{hour}{minutes} {(time.Hour < 12 ? "a. m." : "p. m.")}";
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -64,7 +127,7 @@
             if (!string.IsNullOrEmpty(u.ParishColor))
             {
                 await JS.InvokeVoidAsync("aplicarColorParroquia",
-                    u.ParishColor, u.ParishColorSec ?? "#8B0000");
+                    u.ParishColor, u.ParishColorSec ?? "#2D1B18");
             }
         }
     }
@@ -82,6 +145,7 @@
         "settings"      => "⚙️", "home"          => "🏠", "news"      => "📰",
         "notifications" => "🔔", "donations"     => "💝", "users"     => "👥",
         "sacraments"    => "⛪", "gallery"       => "🖼️", "intentions"=> "🕯️",
-        "requests"      => "📋", _               => "📦"
+        "requests"      => "📋", "countries"     => "🌎", "states" => "🗺️",
+        "neighborhoods" => "🏘️", _               => "📦"
     };
 }

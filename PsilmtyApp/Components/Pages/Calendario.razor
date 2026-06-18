@@ -48,11 +48,21 @@
                                 <strong>@TipoIcono(e.Type) @e.Title</strong>
                                 @if (e.Location != null) { <div class="text-muted small">📍 @e.Location</div> }
                                 @if (e.Description != null) { <div class="small">@e.Description</div> }
+                                @if (e.ReminderMinutes > 0)
+                                {
+                                    <div class="reminder-badge">🔔 @TextoRecordatorio(e.ReminderMinutes)</div>
+                                }
                             </div>
-                            @if (permiso?.PuedeEliminar == true)
-                            {
-                                <button class="btn btn-sm btn-outline-danger" @onclick="() => Eliminar(e.Id)">×</button>
-                            }
+                            <div class="item-actions">
+                                @if (permiso?.PuedeEditar == true)
+                                {
+                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => AbrirEditar(e)">Editar</button>
+                                }
+                                @if (permiso?.PuedeEliminar == true)
+                                {
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => Eliminar(e.Id)">×</button>
+                                }
+                            </div>
                         </div>
                     }
                 </div>
@@ -65,7 +75,7 @@
 {
     <div class="modal-overlay" @onclick="CerrarFormulario">
         <div class="modal-card" @onclick:stopPropagation>
-            <h4>Nuevo Evento de Calendario</h4>
+            <h4>@(editandoId.HasValue ? "Modificar evento de calendario" : "Nuevo evento de calendario")</h4>
             <div class="mb-3">
                 <label class="form-label">Título *</label>
                 <input class="form-control" @bind="form.Title" />
@@ -112,6 +122,27 @@
                 <label class="form-label">Descripción</label>
                 <textarea class="form-control" @bind="form.Description" rows="2"></textarea>
             </div>
+            <div class="notification-box">
+                <div class="notification-box-title">🔔 Recordatorio</div>
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="calendarNotify" @bind="form.SendNotification" />
+                    <label class="form-check-label" for="calendarNotify">Enviar notificación a los usuarios correspondientes</label>
+                </div>
+                @if (form.SendNotification)
+                {
+                    <label class="form-label">¿Cuándo debe salir el mensaje?</label>
+                    <select class="form-select" @bind="form.ReminderMinutes">
+                        <option value="0">Al comenzar</option>
+                        <option value="15">15 minutos antes</option>
+                        <option value="30">30 minutos antes</option>
+                        <option value="60">1 hora antes</option>
+                        <option value="180">3 horas antes</option>
+                        <option value="1440">1 día antes</option>
+                        <option value="2880">2 días antes</option>
+                        <option value="10080">1 semana antes</option>
+                    </select>
+                }
+            </div>
 
             @if (errorForm != null) { <div class="alert alert-danger py-2">@errorForm</div> }
 
@@ -132,6 +163,7 @@
     private string? errorForm;
     private string filtroTipo = "";
     private CalendarioForm form = new();
+    private uint? editandoId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -156,23 +188,56 @@
 
     private void AbrirFormulario()
     {
-        form = new CalendarioForm { StartDatetime = DateTime.Now, EndDatetime = DateTime.Now.AddHours(1) };
+        editandoId = null;
+        form = new CalendarioForm
+        {
+            StartDatetime = DateTime.Now,
+            EndDatetime = DateTime.Now.AddHours(1),
+            SendNotification = true,
+            ReminderMinutes = 60
+        };
         errorForm = null;
         mostrarFormulario = true;
     }
+
+    private void AbrirEditar(CalendarioDto entrada)
+    {
+        editandoId = entrada.Id;
+        form = new CalendarioForm
+        {
+            Title = entrada.Title,
+            Description = entrada.Description,
+            Color = entrada.Color,
+            StartDatetime = ParseFecha(entrada.StartDatetime, DateTime.Now),
+            EndDatetime = ParseFecha(entrada.EndDatetime, DateTime.Now.AddHours(1)),
+            AllDay = entrada.AllDay,
+            Type = entrada.Type,
+            Location = entrada.Location,
+            ReminderMinutes = entrada.ReminderMinutes,
+            SendNotification = entrada.ReminderMinutes >= 0
+        };
+        errorForm = null;
+        mostrarFormulario = true;
+    }
+
     private void CerrarFormulario() => mostrarFormulario = false;
 
     private async Task Guardar()
     {
         if (string.IsNullOrWhiteSpace(form.Title)) { errorForm = "El título es requerido."; return; }
         guardando = true;
-        var r = await Api.CrearCalendarioAsync(new
+        var payload = new
         {
             title = form.Title, description = form.Description, color = form.Color,
             startDatetime = form.StartDatetime.ToString("yyyy-MM-dd HH:mm:ss"),
             endDatetime = form.EndDatetime.ToString("yyyy-MM-dd HH:mm:ss"),
-            allDay = form.AllDay, type = form.Type, location = form.Location
-        });
+            allDay = form.AllDay, type = form.Type, location = form.Location,
+            reminderMinutes = form.SendNotification ? form.ReminderMinutes : 0,
+            sendNotification = form.SendNotification
+        };
+        var r = editandoId.HasValue
+            ? await Api.ActualizarCalendarioAsync(editandoId.Value, payload)
+            : await Api.CrearCalendarioAsync(payload);
         guardando = false;
         if (r is null) { errorForm = "Error al guardar."; return; }
         mostrarFormulario = false;
@@ -188,6 +253,18 @@
         DateTime.TryParse(dt, out var d) ? d.ToString("dddd, dd MMMM yyyy") : dt;
     private static string FormatHora(string dt) =>
         DateTime.TryParse(dt, out var d) ? d.ToString("HH:mm") : "";
+    private static DateTime ParseFecha(string value, DateTime fallback) =>
+        DateTime.TryParse(value, out var date) ? date : fallback;
+    private static string TextoRecordatorio(int minutos) => minutos switch
+    {
+        0 => "Al comenzar",
+        60 => "1 hora antes",
+        1440 => "1 día antes",
+        2880 => "2 días antes",
+        10080 => "1 semana antes",
+        _ when minutos < 60 => $"{minutos} minutos antes",
+        _ => $"{minutos / 60} horas antes"
+    };
     private static string TipoIcono(string t) => t switch
     { "mass" => "⛪", "event" => "🎉", "retreat" => "🏔️", "catechesis" => "📖", "meeting" => "👥", _ => "📌" };
 }

@@ -1,0 +1,167 @@
+@inject ApiService Api
+
+<div class="location-selector">
+    <div class="responsive-form-grid">
+        <div>
+            <label class="form-label">País</label>
+            <input type="search" class="form-control mb-2"
+                   @bind="countrySearch" @bind:event="oninput"
+                   placeholder="Buscar país..." />
+            <select class="form-select" value="@CountryId" @onchange="OnCountryChanged" disabled="@loadingCountries">
+                <option value="">Selecciona un país...</option>
+                @foreach (var country in FilteredCountries)
+                {
+                    <option value="@country.Id">@country.Name</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Estado</label>
+            <input type="search" class="form-control mb-2"
+                   @bind="stateSearch" @bind:event="oninput"
+                   placeholder="Buscar estado..."
+                   disabled="@(!CountryId.HasValue)" />
+            <select class="form-select" value="@StateId" @onchange="OnStateChanged" disabled="@(!CountryId.HasValue || loadingStates)">
+                <option value="">Selecciona un estado...</option>
+                @foreach (var state in FilteredStates)
+                {
+                    <option value="@state.Id">@state.Name</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="mt-2">
+        <label class="form-label">Colonia</label>
+        <div class="location-search-row">
+            <input type="search" class="form-control"
+                   @bind="neighborhoodSearch"
+                   @bind:event="oninput"
+                   placeholder="Buscar colonia, municipio o ciudad..." />
+            <button type="button" class="btn btn-outline-secondary"
+                    @onclick="SearchNeighborhoods"
+                    disabled="@(!StateId.HasValue || loadingNeighborhoods)">Buscar</button>
+        </div>
+        <select class="form-select mt-2" value="@NeighborhoodId"
+                @onchange="OnNeighborhoodChanged"
+                disabled="@(!StateId.HasValue || loadingNeighborhoods)">
+            <option value="">Selecciona una colonia...</option>
+            @foreach (var neighborhood in neighborhoods)
+            {
+                <option value="@neighborhood.Id">@neighborhood.Display</option>
+            }
+        </select>
+        @if (StateId.HasValue && neighborhoods.Count == 0 && !loadingNeighborhoods)
+        {
+            <small class="text-muted">No hay colonias para la búsqueda seleccionada.</small>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public uint? CountryId { get; set; }
+    [Parameter] public EventCallback<uint?> CountryIdChanged { get; set; }
+    [Parameter] public uint? StateId { get; set; }
+    [Parameter] public EventCallback<uint?> StateIdChanged { get; set; }
+    [Parameter] public uint? NeighborhoodId { get; set; }
+    [Parameter] public EventCallback<uint?> NeighborhoodIdChanged { get; set; }
+    [Parameter] public string? NeighborhoodName { get; set; }
+    [Parameter] public EventCallback<NeighborhoodCatalogDto?> OnNeighborhoodSelected { get; set; }
+
+    private List<CountryDto> countries = [];
+    private List<StateCatalogDto> states = [];
+    private List<NeighborhoodCatalogDto> neighborhoods = [];
+    private string neighborhoodSearch = "";
+    private string countrySearch = "";
+    private string stateSearch = "";
+    private bool loadingCountries, loadingStates, loadingNeighborhoods;
+
+    private IEnumerable<CountryDto> FilteredCountries =>
+        string.IsNullOrWhiteSpace(countrySearch)
+            ? countries
+            : countries.Where(item =>
+                item.Name.Contains(countrySearch, StringComparison.OrdinalIgnoreCase) ||
+                item.Code.Contains(countrySearch, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<StateCatalogDto> FilteredStates =>
+        string.IsNullOrWhiteSpace(stateSearch)
+            ? states
+            : states.Where(item =>
+                item.Name.Contains(stateSearch, StringComparison.OrdinalIgnoreCase) ||
+                item.Code.Contains(stateSearch, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        loadingCountries = true;
+        countries = await Api.GetCountriesAsync();
+        loadingCountries = false;
+
+        if (!CountryId.HasValue)
+        {
+            CountryId = countries.FirstOrDefault(item => item.Code == "MEX")?.Id;
+            await CountryIdChanged.InvokeAsync(CountryId);
+        }
+
+        await LoadStatesAsync();
+        if (StateId.HasValue)
+        {
+            neighborhoodSearch = NeighborhoodName ?? "";
+            await LoadNeighborhoodsAsync();
+        }
+    }
+
+    private async Task OnCountryChanged(ChangeEventArgs e)
+    {
+        CountryId = ParseId(e.Value);
+        StateId = null;
+        NeighborhoodId = null;
+        states = [];
+        neighborhoods = [];
+        neighborhoodSearch = "";
+        stateSearch = "";
+        await CountryIdChanged.InvokeAsync(CountryId);
+        await StateIdChanged.InvokeAsync(null);
+        await NeighborhoodIdChanged.InvokeAsync(null);
+        await LoadStatesAsync();
+    }
+
+    private async Task OnStateChanged(ChangeEventArgs e)
+    {
+        StateId = ParseId(e.Value);
+        NeighborhoodId = null;
+        neighborhoods = [];
+        neighborhoodSearch = "";
+        await StateIdChanged.InvokeAsync(StateId);
+        await NeighborhoodIdChanged.InvokeAsync(null);
+        await LoadNeighborhoodsAsync();
+    }
+
+    private async Task OnNeighborhoodChanged(ChangeEventArgs e)
+    {
+        NeighborhoodId = ParseId(e.Value);
+        await NeighborhoodIdChanged.InvokeAsync(NeighborhoodId);
+        await OnNeighborhoodSelected.InvokeAsync(
+            neighborhoods.FirstOrDefault(item => item.Id == NeighborhoodId));
+    }
+
+    private Task SearchNeighborhoods() => LoadNeighborhoodsAsync();
+
+    private async Task LoadStatesAsync()
+    {
+        if (!CountryId.HasValue) return;
+        loadingStates = true;
+        states = await Api.GetStatesAsync(CountryId.Value);
+        loadingStates = false;
+    }
+
+    private async Task LoadNeighborhoodsAsync()
+    {
+        if (!StateId.HasValue) return;
+        loadingNeighborhoods = true;
+        neighborhoods = await Api.GetNeighborhoodsAsync(StateId.Value, neighborhoodSearch);
+        loadingNeighborhoods = false;
+    }
+
+    private static uint? ParseId(object? value) =>
+        uint.TryParse(value?.ToString(), out var id) && id > 0 ? id : null;
+}

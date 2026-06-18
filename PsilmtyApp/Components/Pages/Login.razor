@@ -26,13 +26,32 @@
             @* ══════════ INICIAR SESIÓN ══════════ *@
             <div class="mb-3">
                 <label class="form-label">Parroquia <small class="text-muted">(opcional para administradores)</small></label>
+                <div class="parish-search-wrap">
+                    <span class="parish-search-icon">🔎</span>
+                    <input type="search"
+                           class="form-control parish-search-input"
+                           @bind="busquedaParroquia"
+                           @bind:event="oninput"
+                           placeholder="Buscar por parroquia, ciudad o estado..."
+                           autocomplete="off" />
+                    @if (!string.IsNullOrWhiteSpace(busquedaParroquia))
+                    {
+                        <button type="button" class="parish-search-clear"
+                                title="Limpiar búsqueda"
+                                @onclick="() => busquedaParroquia = string.Empty">×</button>
+                    }
+                </div>
                 <select class="form-select" value="@parroquiaLogin" @onchange="OnParroquiaLoginChange">
                     <option value="0">Selecciona tu parroquia...</option>
-                    @foreach (var p in parroquias)
+                    @foreach (var p in ParroquiasFiltradas)
                     {
                         <option value="@p.Id">@p.Display</option>
                     }
                 </select>
+                @if (!ParroquiasFiltradas.Any())
+                {
+                    <small class="parish-search-empty">No se encontraron parroquias con esa búsqueda.</small>
+                }
             </div>
             <div class="mb-3">
                 <label class="form-label">Correo</label>
@@ -135,24 +154,18 @@
                 <label class="form-label">Dirección</label>
                 <input class="form-control" @bind="reg.Address" />
             </div>
-            <div class="row">
-                <div class="col mb-2">
-                    <label class="form-label">Colonia</label>
-                    <input class="form-control" @bind="reg.Neighborhood" />
-                </div>
-                <div class="col mb-2">
-                    <label class="form-label">Código postal</label>
-                    <input class="form-control" @bind="reg.ZipCode" maxlength="5" inputmode="numeric" />
-                </div>
-            </div>
+            <LocationSelector @bind-CountryId="reg.CountryId"
+                              @bind-StateId="reg.StateId"
+                              @bind-NeighborhoodId="reg.NeighborhoodId"
+                              OnNeighborhoodSelected="OnRegistrationNeighborhoodSelected" />
             <div class="row">
                 <div class="col mb-2">
                     <label class="form-label">Ciudad</label>
-                    <input class="form-control" @bind="reg.City" />
+                    <input class="form-control" @bind="reg.City" readonly />
                 </div>
                 <div class="col mb-2">
-                    <label class="form-label">Estado</label>
-                    <input class="form-control" @bind="reg.State" />
+                    <label class="form-label">Código postal</label>
+                    <input class="form-control" @bind="reg.ZipCode" readonly />
                 </div>
             </div>
 
@@ -183,8 +196,29 @@
     private bool recordar = true;
     private uint parroquiaLogin;
     private ParroquiaPublicaDto? parroquiaSel;
-    private string colorPrincipal = "#CC0000";
-    private string colorSecundario = "#8B0000";
+    private string busquedaParroquia = "";
+    private string colorPrincipal = "#4E342E";
+    private string colorSecundario = "#2D1B18";
+
+    private IReadOnlyList<ParroquiaPublicaDto> ParroquiasFiltradas
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(busquedaParroquia))
+                return parroquias;
+
+            var query = busquedaParroquia.Trim();
+            var matches = parroquias.Where(p =>
+                p.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                p.City.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                p.State.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            if (parroquiaSel is not null && matches.All(p => p.Id != parroquiaSel.Id))
+                matches.Insert(0, parroquiaSel);
+
+            return matches;
+        }
+    }
 
     private void OnParroquiaLoginChange(ChangeEventArgs e)
     {
@@ -194,16 +228,16 @@
             parroquiaSel = parroquias.FirstOrDefault(p => p.Id == id);
             if (parroquiaSel != null)
             {
-                colorPrincipal  = parroquiaSel.PrimaryColor   ?? "#CC0000";
-                colorSecundario = parroquiaSel.SecondaryColor ?? "#8B0000";
+                colorPrincipal  = parroquiaSel.PrimaryColor   ?? "#4E342E";
+                colorSecundario = parroquiaSel.SecondaryColor ?? "#2D1B18";
             }
         }
         else
         {
             parroquiaLogin = 0;
             parroquiaSel = null;
-            colorPrincipal = "#CC0000";
-            colorSecundario = "#8B0000";
+            colorPrincipal = "#4E342E";
+            colorSecundario = "#2D1B18";
         }
     }
 
@@ -239,6 +273,8 @@
 
         // Cargar parroquias para los selectores
         parroquias = await Api.GetParroquiasPublicasAsync();
+        if (parroquias.Count == 0)
+            error = "No se pudieron cargar las parroquias. Verifica la conexión con el servidor.";
     }
 
     private async Task HandleLogin()
@@ -283,6 +319,7 @@
         { error = "El nombre y los apellidos no pueden contener números."; return; }
 
         if (reg.ParishId == 0) { error = "Selecciona tu parroquia."; return; }
+        if (!reg.StateId.HasValue) { error = "Selecciona tu estado."; return; }
         if (string.IsNullOrWhiteSpace(reg.Email)) { error = "El correo es requerido."; return; }
         if (string.IsNullOrWhiteSpace(reg.Password) || reg.Password.Length < 6)
         { error = "La contraseña debe tener al menos 6 caracteres."; return; }
@@ -315,4 +352,12 @@
 
     private static bool ContieneNumero(string? s) =>
         !string.IsNullOrEmpty(s) && s.Any(char.IsDigit);
+
+    private Task OnRegistrationNeighborhoodSelected(NeighborhoodCatalogDto? neighborhood)
+    {
+        reg.Neighborhood = neighborhood?.Name;
+        reg.ZipCode = neighborhood?.PostalCode;
+        reg.City = neighborhood?.City ?? neighborhood?.Municipality;
+        return Task.CompletedTask;
+    }
 }

@@ -3,7 +3,7 @@
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background: linear-gradient(135deg, #CC0000 0%, #8B0000 100%);
+    background: linear-gradient(135deg, #4E342E 0%, #2D1B18 100%);
     padding: 1rem;
 }
 
@@ -24,7 +24,7 @@
 .login-logo h1 {
     font-size: 2rem;
     font-weight: 700;
-    color: #CC0000;
+    color: #4E342E;
     margin-bottom: 0.25rem;
 }
 
@@ -35,15 +35,15 @@
 }
 
 .btn-primary {
-    background-color: #CC0000;
-    border-color: #CC0000;
+    background-color: #4E342E;
+    border-color: #4E342E;
     font-weight: 600;
     letter-spacing: 0.5px;
 }
 
 .btn-primary:hover {
-    background-color: #8B0000;
-    border-color: #8B0000;
+    background-color: #2D1B18;
+    border-color: #2D1B18;
 }
 
 .login-card-wide {
@@ -62,7 +62,7 @@
 .btn-link-inline {
     background: none;
     border: none;
-    color: #CC0000;
+    color: #4E342E;
     font-weight: 600;
     cursor: pointer;
     padding: 0;
@@ -80,4 +80,43 @@
     object-fit: contain;
     margin: 0 auto 0.75rem;
     display: block;
+}
+
+.parish-search-wrap {
+    position: relative;
+    margin-bottom: .5rem;
+}
+
+.parish-search-icon {
+    position: absolute;
+    left: .75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: .9rem;
+    pointer-events: none;
+}
+
+.parish-search-input {
+    padding-left: 2.25rem;
+    padding-right: 2.25rem;
+}
+
+.parish-search-clear {
+    position: absolute;
+    right: .6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1.7rem;
+    height: 1.7rem;
+    border: 0;
+    border-radius: 50%;
+    background: #eee;
+    color: #555;
+    line-height: 1;
+}
+
+.parish-search-empty {
+    display: block;
+    margin-top: .4rem;
+    color: #a94442;
 }

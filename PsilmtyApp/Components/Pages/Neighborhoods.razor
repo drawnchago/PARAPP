@@ -1,0 +1,170 @@
+@page "/catalogos/colonias"
+@inject ApiService Api
+@inject SessionService Session
+@inject NavigationManager Nav
+
+<div class="module-container">
+    <div class="module-header">
+        <h2>🏘️ Colonias</h2>
+        @if (permission?.PuedeCrear == true)
+        {
+            <button class="btn btn-primary" @onclick="OpenCreate">+ Nueva colonia</button>
+        }
+    </div>
+
+    <div class="catalog-toolbar catalog-toolbar-4">
+        <select class="form-select" value="@countryFilter" @onchange="OnCountryFilterChanged">
+            <option value="">Todos los países</option>
+            @foreach (var country in countries.Where(item => item.IsActive))
+            {
+                <option value="@country.Id">@country.Name</option>
+            }
+        </select>
+        <select class="form-select" @bind="stateFilter">
+            <option value="">Todos los estados</option>
+            @foreach (var state in filterStates.Where(item => item.IsActive))
+            {
+                <option value="@state.Id">@state.Name</option>
+            }
+        </select>
+        <input type="search" class="form-control" @bind="query" placeholder="Colonia, municipio o ciudad..." />
+        <input class="form-control" @bind="postalCode" maxlength="10" placeholder="Código postal" />
+        <button class="btn btn-outline-secondary" @onclick="Load">Buscar</button>
+    </div>
+
+    @if (loading)
+    {
+        <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+    }
+    else
+    {
+        <div class="catalog-list">
+            @foreach (var item in items)
+            {
+                <div class="catalog-row catalog-row-neighborhood @(!item.IsActive ? "inactive" : "")">
+                    <div class="catalog-code">@item.PostalCode</div>
+                    <div class="catalog-info">
+                        <strong>@item.Name</strong>
+                        <small>@item.Municipality · @item.StateName · @item.CountryName</small>
+                    </div>
+                    <span class="chip">@item.SettlementType</span>
+                    <span class="chip @(item.IsActive ? "chip-success" : "chip-warning")">@(item.IsActive ? "Activo" : "Inactivo")</span>
+                    <div class="item-actions">
+                        @if (permission?.PuedeEditar == true) { <button class="btn btn-sm btn-outline-primary" @onclick="() => OpenEdit(item)">Editar</button> }
+                        @if (permission?.PuedeEliminar == true && item.IsActive) { <button class="btn btn-sm btn-outline-danger" @onclick="() => Deactivate(item.Id)">Desactivar</button> }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (showForm)
+{
+    <div class="modal-overlay" @onclick="CloseForm">
+        <div class="modal-card" @onclick:stopPropagation>
+            <h4>@(editingId.HasValue ? "Editar colonia" : "Nueva colonia")</h4>
+            <div class="responsive-form-grid">
+                <div>
+                    <label class="form-label">País *</label>
+                    <select class="form-select" value="@form.CountryId" @onchange="OnFormCountryChanged">
+                        <option value="0">Selecciona...</option>
+                        @foreach (var country in countries.Where(item => item.IsActive)) { <option value="@country.Id">@country.Name</option> }
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Estado *</label>
+                    <select class="form-select" @bind="form.StateId">
+                        <option value="0">Selecciona...</option>
+                        @foreach (var state in formStates.Where(item => item.IsActive)) { <option value="@state.Id">@state.Name</option> }
+                    </select>
+                </div>
+                <div><label class="form-label">Código postal *</label><input class="form-control" maxlength="10" @bind="form.PostalCode" /></div>
+                <div><label class="form-label">Nombre *</label><input class="form-control" @bind="form.Name" /></div>
+                <div><label class="form-label">Tipo de asentamiento</label><input class="form-control" @bind="form.SettlementType" /></div>
+                <div><label class="form-label">Municipio</label><input class="form-control" @bind="form.Municipality" /></div>
+                <div><label class="form-label">Ciudad</label><input class="form-control" @bind="form.City" /></div>
+                <div><label class="form-label">Zona</label><input class="form-control" @bind="form.Zone" /></div>
+                <div><label class="form-label">Código municipio</label><input class="form-control" @bind="form.MunicipalityCode" /></div>
+                <div><label class="form-label">Código asentamiento</label><input class="form-control" @bind="form.SettlementCode" /></div>
+            </div>
+            <div class="form-check form-switch my-3"><input class="form-check-input" type="checkbox" id="neighborhoodActive" @bind="form.IsActive" /><label class="form-check-label" for="neighborhoodActive">Activo</label></div>
+            @if (error != null) { <div class="alert alert-danger py-2">@error</div> }
+            <div class="d-flex gap-2 justify-content-end"><button class="btn btn-secondary" @onclick="CloseForm">Cancelar</button><button class="btn btn-primary" @onclick="Save" disabled="@saving">Guardar</button></div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<NeighborhoodCatalogDto> items=[];
+    private List<CountryDto> countries=[];
+    private List<StateCatalogDto> filterStates=[],formStates=[];
+    private NeighborhoodCatalogForm form=new();
+    private ModuloPermiso? permission;
+    private uint? editingId,countryFilter,stateFilter;
+    private string query="",postalCode="";
+    private string? error;
+    private bool loading=true,showForm,saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if(!Session.IsAuthenticated){Nav.NavigateTo("/login");return;}
+        permission=Session.ObtenerPermiso("neighborhoods");
+        if(permission?.PuedeVer!=true){Nav.NavigateTo("/");return;}
+        countries=await Api.GetAdminCountriesAsync();
+        countryFilter=countries.FirstOrDefault(item=>item.Code=="MEX")?.Id;
+        if(countryFilter.HasValue)filterStates=await Api.GetAdminStatesAsync(countryFilter);
+        stateFilter=filterStates.FirstOrDefault(item=>item.Code=="NLE")?.Id;
+        await Load();
+    }
+    private async Task Load(){loading=true;items=await Api.GetAdminNeighborhoodsAsync(stateFilter,query,postalCode);loading=false;}
+    private async Task OnCountryFilterChanged(ChangeEventArgs e)
+    {
+        countryFilter=ParseId(e.Value);stateFilter=null;filterStates=countryFilter.HasValue?await Api.GetAdminStatesAsync(countryFilter):[];await Load();
+    }
+    private async Task OnFormCountryChanged(ChangeEventArgs e)
+    {
+        form.CountryId=ParseId(e.Value)??0;form.StateId=0;formStates=form.CountryId>0?await Api.GetAdminStatesAsync(form.CountryId):[];
+    }
+    private async Task OpenCreate()
+    {
+        editingId=null;
+        var countryId=countries.FirstOrDefault(item=>item.Code=="MEX")?.Id??0;
+        formStates=countryId>0?await Api.GetAdminStatesAsync(countryId):[];
+        form=new(){CountryId=countryId,StateId=formStates.FirstOrDefault(item=>item.Code=="NLE")?.Id??0};
+        error=null;showForm=true;
+    }
+    private async Task OpenEdit(NeighborhoodCatalogDto item)
+    {
+        editingId=item.Id;
+        var state=await FindState(item.StateId);
+        formStates=state is null?[]:await Api.GetAdminStatesAsync(state.CountryId);
+        form=new(){CountryId=state?.CountryId??0,StateId=item.StateId,PostalCode=item.PostalCode,Name=item.Name,
+            SettlementType=item.SettlementType,Municipality=item.Municipality,City=item.City,
+            PostalStateCode=item.PostalStateCode,MunicipalityCode=item.MunicipalityCode,
+            SettlementCode=item.SettlementCode,Zone=item.Zone,IsActive=item.IsActive};
+        error=null;showForm=true;
+    }
+    private async Task<StateCatalogDto?> FindState(uint stateId)
+    {
+        foreach(var country in countries)
+        {
+            var states=await Api.GetAdminStatesAsync(country.Id);
+            var found=states.FirstOrDefault(item=>item.Id==stateId);
+            if(found!=null)return found;
+        }
+        return null;
+    }
+    private void CloseForm()=>showForm=false;
+    private async Task Save()
+    {
+        if(form.StateId==0||string.IsNullOrWhiteSpace(form.PostalCode)||string.IsNullOrWhiteSpace(form.Name)){error="Estado, código postal y nombre son requeridos.";return;}
+        saving=true;
+        var ok=editingId.HasValue?await Api.UpdateNeighborhoodAsync(editingId.Value,form)!=null:await Api.CreateNeighborhoodAsync(form)!=null;
+        saving=false;
+        if(!ok){error="No se pudo guardar. Verifica que no exista un registro igual.";return;}
+        showForm=false;await Load();
+    }
+    private async Task Deactivate(uint id){if(await Api.DeactivateNeighborhoodAsync(id))await Load();}
+    private static uint? ParseId(object? value)=>uint.TryParse(value?.ToString(),out var id)&&id>0?id:null;
+}

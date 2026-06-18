@@ -1,0 +1,96 @@
+@page "/catalogos/estados"
+@inject ApiService Api
+@inject SessionService Session
+@inject NavigationManager Nav
+
+<div class="module-container">
+    <div class="module-header">
+        <h2>🗺️ Estados</h2>
+        @if (permission?.PuedeCrear == true)
+        {
+            <button class="btn btn-primary" @onclick="OpenCreate">+ Nuevo estado</button>
+        }
+    </div>
+
+    <div class="catalog-toolbar catalog-toolbar-3">
+        <select class="form-select" @bind="countryFilter" @bind:after="Load">
+            <option value="">Todos los países</option>
+            @foreach (var country in countries.Where(item => item.IsActive))
+            {
+                <option value="@country.Id">@country.Name</option>
+            }
+        </select>
+        <input type="search" class="form-control" @bind="query" @bind:event="oninput" placeholder="Buscar estado..." />
+        <button class="btn btn-outline-secondary" @onclick="Load">Buscar</button>
+    </div>
+
+    <div class="catalog-list">
+        @foreach (var item in items)
+        {
+            <div class="catalog-row @(!item.IsActive ? "inactive" : "")">
+                <div class="catalog-code">@item.Code</div>
+                <div class="catalog-info"><strong>@item.Name</strong><small>@item.CountryName</small></div>
+                <span class="chip @(item.IsActive ? "chip-success" : "chip-warning")">@(item.IsActive ? "Activo" : "Inactivo")</span>
+                <div class="item-actions">
+                    @if (permission?.PuedeEditar == true) { <button class="btn btn-sm btn-outline-primary" @onclick="() => OpenEdit(item)">Editar</button> }
+                    @if (permission?.PuedeEliminar == true && item.IsActive) { <button class="btn btn-sm btn-outline-danger" @onclick="() => Deactivate(item.Id)">Desactivar</button> }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (showForm)
+{
+    <div class="modal-overlay" @onclick="CloseForm">
+        <div class="modal-card" @onclick:stopPropagation>
+            <h4>@(editingId.HasValue ? "Editar estado" : "Nuevo estado")</h4>
+            <label class="form-label">País *</label>
+            <select class="form-select mb-3" @bind="form.CountryId">
+                <option value="0">Selecciona...</option>
+                @foreach (var country in countries.Where(item => item.IsActive)) { <option value="@country.Id">@country.Name</option> }
+            </select>
+            <label class="form-label">Código *</label>
+            <input class="form-control mb-3 text-uppercase" maxlength="10" @bind="form.Code" />
+            <label class="form-label">Nombre *</label>
+            <input class="form-control mb-3" @bind="form.Name" />
+            <div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" id="stateActive" @bind="form.IsActive" /><label class="form-check-label" for="stateActive">Activo</label></div>
+            @if (error != null) { <div class="alert alert-danger py-2">@error</div> }
+            <div class="d-flex gap-2 justify-content-end"><button class="btn btn-secondary" @onclick="CloseForm">Cancelar</button><button class="btn btn-primary" @onclick="Save" disabled="@saving">Guardar</button></div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<StateCatalogDto> items = [];
+    private List<CountryDto> countries = [];
+    private ModuloPermiso? permission;
+    private StateCatalogForm form = new();
+    private uint? editingId, countryFilter;
+    private string query = "";
+    private string? error;
+    private bool showForm, saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+        permission = Session.ObtenerPermiso("states");
+        if (permission?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
+        countries = await Api.GetAdminCountriesAsync();
+        await Load();
+    }
+    private async Task Load() => items = await Api.GetAdminStatesAsync(countryFilter, query);
+    private void OpenCreate() { editingId = null; form = new() { CountryId = countries.FirstOrDefault(item => item.Code == "MEX")?.Id ?? 0 }; error = null; showForm = true; }
+    private void OpenEdit(StateCatalogDto item) { editingId = item.Id; form = new() { CountryId=item.CountryId,Code=item.Code,Name=item.Name,IsActive=item.IsActive }; error=null;showForm=true; }
+    private void CloseForm() => showForm=false;
+    private async Task Save()
+    {
+        if (form.CountryId==0 || string.IsNullOrWhiteSpace(form.Code) || string.IsNullOrWhiteSpace(form.Name)) { error="País, código y nombre son requeridos.";return; }
+        saving=true;
+        var ok=editingId.HasValue ? await Api.UpdateStateAsync(editingId.Value,form)!=null : await Api.CreateStateAsync(form)!=null;
+        saving=false;
+        if(!ok){error="No se pudo guardar. Verifica que el código no esté repetido.";return;}
+        showForm=false;await Load();
+    }
+    private async Task Deactivate(uint id){if(await Api.DeactivateStateAsync(id))await Load();}
+}

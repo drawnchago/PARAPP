@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using PsilmtyApp.Services;
 
@@ -8,6 +9,10 @@ namespace PsilmtyApp
         public static MauiApp CreateMauiApp()
         {
             var builder = MauiApp.CreateBuilder();
+            using var settingsStream = typeof(MauiProgram).Assembly
+                .GetManifestResourceStream("PsilmtyApp.appsettings.json")
+                ?? throw new InvalidOperationException("The embedded appsettings.json file was not found.");
+            builder.Configuration.AddJsonStream(settingsStream);
             builder
                 .UseMauiApp<App>()
                 .ConfigureFonts(fonts =>
@@ -28,8 +33,11 @@ namespace PsilmtyApp
             builder.Services.AddHttpClient<ApiService>(client =>
             {
                 // Cambia por la IP/URL de tu API en producción
-                client.BaseAddress = new Uri("https://api.sanisidrolabradormty.com/");
-                client.Timeout = TimeSpan.FromSeconds(30);
+                var baseUrl = builder.Configuration["Api:BaseUrl"]
+                    ?? throw new InvalidOperationException("Api:BaseUrl is missing from appsettings.json.");
+                var timeoutSeconds = builder.Configuration.GetValue("Api:TimeoutSeconds", 30);
+                client.BaseAddress = new Uri(baseUrl, UriKind.Absolute);
+                client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
             });
 
             return builder.Build();

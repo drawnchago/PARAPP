@@ -1,11 +1,11 @@
 :root {
-    --color-primario:    #CC0000;
-    --color-secundario:  #8B0000;
+    --color-primario:    #4E342E;
+    --color-secundario:  #2D1B18;
     --color-fondo:       #FFFFFF;
     --color-superficie:  #F5F5F5;
     --color-texto:       #212121;
     --color-texto-suave: #757575;
-    --color-acento:      #CC0000;
+    --color-acento:      #795548;
     --color-error:       #D32F2F;
 }
 
@@ -79,6 +79,18 @@ html, body {
 .home-modulo-link { background: var(--color-superficie); border-radius: 14px; padding: 1.25rem .75rem; text-align: center; text-decoration: none; color: var(--color-texto); display: flex; flex-direction: column; align-items: center; gap: .5rem; transition: transform .15s, box-shadow .15s; box-shadow: 0 2px 8px rgba(0,0,0,.07); }
 .home-modulo-link:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.12); color: var(--color-primario); }
 .home-modulo-icono { font-size: 2.2rem; }
+.parish-schedule-card { background: var(--color-superficie); border-radius: 16px; padding: 1.25rem; margin-bottom: 1.25rem; box-shadow: 0 3px 14px rgba(0,0,0,.08); }
+.schedule-card-header { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; }
+.schedule-card-header h3 { margin: 0; font-size: 1.05rem; font-weight: 700; }
+.schedule-card-header small { color: var(--color-texto-suave); }
+.schedule-card-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; background: rgba(78,52,46,.1); font-size: 1.35rem; }
+.schedule-week { display: grid; gap: .45rem; }
+.schedule-day { display: grid; grid-template-columns: minmax(90px,.8fr) 1.5fr; align-items: start; gap: .75rem; padding: .65rem .75rem; border-radius: 10px; background: rgba(0,0,0,.025); }
+.schedule-day.today { background: rgba(78,52,46,.08); border-left: 4px solid var(--color-primario); }
+.schedule-day-name { font-weight: 700; font-size: .86rem; }
+.schedule-day-hours { display: flex; flex-direction: column; gap: .15rem; font-size: .86rem; }
+.today-badge { display: inline-block; margin-left: .35rem; padding: .08rem .4rem; border-radius: 10px; background: var(--color-primario); color: white; font-size: .62rem; vertical-align: middle; }
+.closed-label { color: var(--color-error); font-weight: 600; }
 
 /* ── Configuración ───────────────────────────────── */
 .pref-section { background: var(--color-superficie); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
@@ -184,6 +196,24 @@ html, body {
 .news-summary { font-size: .85rem; color: var(--color-texto-suave); margin-bottom: .5rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .news-footer { display: flex; justify-content: space-between; align-items: center; }
 .badge-featured { background: #fff8e1; color: #f57f17; font-size: .72rem; padding: .2rem .6rem; border-radius: 20px; font-weight: 600; }
+.badge-scheduled { background: #e3f2fd; color: #1565c0; font-size: .72rem; padding: .2rem .6rem; border-radius: 20px; font-weight: 600; }
+.item-actions { display: flex; align-items: center; gap: .35rem; flex-shrink: 0; }
+.notification-box { margin: 1rem 0; padding: 1rem; border: 1px solid rgba(0,0,0,.12); border-radius: 12px; background: rgba(25,118,210,.04); }
+.notification-box-title { font-weight: 700; margin-bottom: .75rem; }
+.responsive-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.location-selector { margin-top: .75rem; padding: .75rem; border: 1px solid rgba(0,0,0,.1); border-radius: 10px; background: rgba(255,255,255,.35); }
+.location-search-row { display: grid; grid-template-columns: 1fr auto; gap: .5rem; }
+.catalog-toolbar { display: grid; grid-template-columns: 1fr auto; gap: .5rem; margin-bottom: 1rem; }
+.catalog-toolbar-3 { grid-template-columns: minmax(180px,.6fr) 1fr auto; }
+.catalog-toolbar-4 { grid-template-columns: repeat(2,minmax(160px,.7fr)) 1fr minmax(120px,.5fr) auto; }
+.catalog-list { display: grid; gap: .55rem; }
+.catalog-row { display: grid; grid-template-columns: 80px 1fr auto auto; align-items: center; gap: .75rem; padding: .75rem; border-radius: 10px; background: var(--color-superficie); }
+.catalog-row-neighborhood { grid-template-columns: 80px 1fr auto auto auto; }
+.catalog-row.inactive { opacity: .6; }
+.catalog-code { font-weight: 800; color: var(--color-primario); }
+.catalog-info { display: flex; flex-direction: column; min-width: 0; }
+.catalog-info small { color: var(--color-texto-suave); overflow: hidden; text-overflow: ellipsis; }
+.reminder-badge { display: inline-flex; align-items: center; margin-top: .35rem; padding: .15rem .5rem; border-radius: 20px; background: #e3f2fd; color: #1565c0; font-size: .72rem; font-weight: 600; }
 
 /* ── Sacramentos ─────────────────────────────────── */
 .badge-sacramento { background: #ede7f6; color: #5e35b1; font-size: .75rem; padding: .25rem .7rem; border-radius: 20px; font-weight: 600; }
@@ -215,8 +245,38 @@ html, body {
 .cal-entrada-hora { font-size: .8rem; font-weight: 600; color: var(--color-texto-suave); min-width: 60px; }
 .cal-entrada-body { flex: 1; }
 
+@media (max-width: 700px) {
+    .module-header { align-items: flex-start; gap: .75rem; }
+    .module-header .btn { white-space: nowrap; }
+    .modal-overlay { align-items: flex-end; padding: 0; }
+    .modal-card { max-width: none; max-height: 94vh; border-radius: 18px 18px 0 0; padding: 1rem; }
+    .modal-card .row { display: block; margin-left: 0; margin-right: 0; }
+    .modal-card .row > .col { width: 100%; padding-left: 0; padding-right: 0; margin-bottom: .75rem; }
+    .responsive-form-grid { grid-template-columns: 1fr; }
+    .location-search-row { grid-template-columns: 1fr; }
+    .catalog-toolbar,.catalog-toolbar-3,.catalog-toolbar-4 { grid-template-columns: 1fr; }
+    .catalog-row,.catalog-row-neighborhood { grid-template-columns: 1fr auto; }
+    .catalog-info { grid-column: 1 / -1; }
+    .cal-filtros { flex-wrap: nowrap; overflow-x: auto; padding-bottom: .35rem; scrollbar-width: thin; }
+    .cal-entrada { display: grid; grid-template-columns: 1fr auto; }
+    .cal-entrada-hora { grid-column: 1 / -1; min-width: 0; }
+    .cal-entrada-body { min-width: 0; }
+    .news-footer { align-items: flex-end; gap: .5rem; }
+    .schedule-day { grid-template-columns: 1fr; gap: .25rem; }
+}
+
+@media (max-width: 390px) {
+    .module-header { flex-direction: column; }
+    .module-header .btn { width: 100%; }
+    .item-actions { flex-direction: column; align-items: stretch; }
+    .item-actions .btn { width: 100%; }
+    .notification-box { padding: .75rem; }
+    .schedule-block-row { grid-template-columns: 1fr auto 1fr; }
+    .schedule-block-row .btn { grid-column: 1 / -1; }
+}
+
 /* ── Asignar Módulos ─────────────────────────────── */
-.config-modulo-card { background: rgba(204,0,0,.04); border: 2px solid var(--color-primario); border-radius: 12px; padding: 1rem; margin: .75rem 0; }
+.config-modulo-card { background: rgba(78,52,46,.04); border: 2px solid var(--color-primario); border-radius: 12px; padding: 1rem; margin: .75rem 0; }
 .config-modulo-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-bottom: .75rem; }
 .btn-close-mini { background: none; border: none; color: #999; cursor: pointer; font-size: 1rem; }
 .config-permisos { display: flex; flex-wrap: wrap; gap: 1rem; padding: .5rem 0; border-bottom: 1px solid rgba(0,0,0,.06); }
@@ -238,6 +298,12 @@ html, body {
 /* ── Parroquia (configuración) ───────────────────── */
 .parroquia-form .form-label { font-size: .8rem; font-weight: 600; margin-bottom: .2rem; }
 .parroquia-logo-preview { max-height: 70px; margin-top: .5rem; border-radius: 8px; border: 1px solid #ddd; }
+.schedule-editor { display: grid; gap: .75rem; }
+.schedule-editor-day { padding: .85rem; border: 1px solid rgba(0,0,0,.1); border-radius: 12px; background: rgba(255,255,255,.35); }
+.schedule-editor-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.schedule-block-list { display: grid; gap: .5rem; margin-top: .75rem; }
+.schedule-block-row { display: grid; grid-template-columns: 1fr auto 1fr auto; align-items: center; gap: .5rem; }
+.closed-day-message { margin-top: .6rem; color: var(--color-texto-suave); font-size: .85rem; }
 
 /* ── Color de la aplicación ──────────────────────── */
 .color-app-box { background: var(--color-superficie); border-radius: 12px; padding: 1rem; margin-bottom: 1rem; border: 2px dashed #ddd; }
