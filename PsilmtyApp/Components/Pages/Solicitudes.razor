@@ -1,0 +1,188 @@
+@page "/solicitudes"
+@inject ApiService Api
+@inject SessionService Session
+@inject NavigationManager Nav
+
+<div class="module-container">
+    <div class="module-header">
+        <h2>📋 Solicitudes</h2>
+        @if (permiso?.PuedeCrear == true)
+        {
+            <button class="btn btn-primary" @onclick="AbrirFormulario">+ Nueva</button>
+        }
+    </div>
+
+    @if (cargando)
+    {
+        <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (!solicitudes.Any())
+    {
+        <div class="empty-state"><span class="empty-icon">📨</span><p>No hay solicitudes registradas.</p></div>
+    }
+    else
+    {
+        <div class="items-grid">
+            @foreach (var s in solicitudes)
+            {
+                <div class="item-card">
+                    <div class="item-card-header">
+                        <span class="badge-tipo">@s.ServiceName</span>
+                        <span class="badge-estado @EstadoClase(s.Status)">@EstadoNombre(s.Status)</span>
+                    </div>
+                    <h5 class="item-title">@s.UserName</h5>
+                    @if (s.Description != null) { <p class="news-summary">@s.Description</p> }
+                    <div class="item-meta">
+                        @if (s.DesiredDate != null) { <span>📅 Deseada: @FormatFecha(s.DesiredDate)</span> }
+                    </div>
+                    @if (s.Response != null)
+                    {
+                        <div class="solicitud-respuesta">💬 @s.Response</div>
+                    }
+                    <div class="item-footer">
+                        <small class="text-muted">@FormatFecha(s.CreatedAt)</small>
+                        @if (permiso?.PuedeEditar == true)
+                        {
+                            <button class="btn btn-sm btn-outline-primary" @onclick="() => AbrirAtender(s)">Atender</button>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- Nueva solicitud -->
+@if (mostrarFormulario)
+{
+    <div class="modal-overlay" @onclick="CerrarFormulario">
+        <div class="modal-card" @onclick:stopPropagation>
+            <h4>Nueva Solicitud</h4>
+            <div class="mb-3">
+                <label class="form-label">Tipo de servicio *</label>
+                <select class="form-select" @bind="form.ServiceId">
+                    <option value="0">Selecciona...</option>
+                    @foreach (var t in tipos)
+                    {
+                        <option value="@t.Id">@t.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Descripción</label>
+                <textarea class="form-control" @bind="form.Description" rows="3"></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Fecha deseada</label>
+                <input type="date" class="form-control"
+                       @onchange="e => form.DesiredDate = string.IsNullOrEmpty(e.Value?.ToString()) ? null : DateTime.Parse(e.Value.ToString()!)" />
+            </div>
+
+            @if (errorForm != null) { <div class="alert alert-danger py-2">@errorForm</div> }
+
+            <div class="d-flex gap-2 justify-content-end">
+                <button class="btn btn-secondary" @onclick="CerrarFormulario">Cancelar</button>
+                <button class="btn btn-primary" @onclick="Guardar" disabled="@guardando">
+                    @(guardando ? "Guardando..." : "Guardar")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Atender solicitud -->
+@if (mostrarAtender && atendiendo != null)
+{
+    <div class="modal-overlay" @onclick="() => mostrarAtender = false">
+        <div class="modal-card" @onclick:stopPropagation>
+            <h4>Atender Solicitud</h4>
+            <p><strong>@atendiendo.ServiceName</strong> — @atendiendo.UserName</p>
+            <div class="mb-3">
+                <label class="form-label">Estado</label>
+                <select class="form-select" @bind="nuevoEstado">
+                    <option value="under_review">En revisión</option>
+                    <option value="approved">Aprobada</option>
+                    <option value="rejected">Rechazada</option>
+                    <option value="completed">Completada</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Respuesta</label>
+                <textarea class="form-control" @bind="respuesta" rows="3"></textarea>
+            </div>
+            <div class="d-flex gap-2 justify-content-end">
+                <button class="btn btn-secondary" @onclick="() => mostrarAtender = false">Cancelar</button>
+                <button class="btn btn-primary" @onclick="GuardarAtencion">Guardar</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<SolicitudDto> solicitudes = [];
+    private List<CategoriaDto> tipos = [];
+    private ModuloPermiso? permiso;
+    private bool cargando = true, mostrarFormulario, guardando, mostrarAtender;
+    private string? errorForm;
+    private SolicitudForm form = new();
+    private SolicitudDto? atendiendo;
+    private string nuevoEstado = "under_review";
+    private string respuesta = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+        permiso = Session.ObtenerPermiso("requests");
+        if (permiso?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
+        tipos = await Api.GetSolicitudTiposAsync();
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        solicitudes = await Api.GetSolicitudesAsync();
+        cargando = false;
+    }
+
+    private void AbrirFormulario() { form = new(); errorForm = null; mostrarFormulario = true; }
+    private void CerrarFormulario() => mostrarFormulario = false;
+
+    private async Task Guardar()
+    {
+        if (form.ServiceId == 0) { errorForm = "Selecciona el tipo de servicio."; return; }
+        guardando = true;
+        var r = await Api.CrearSolicitudAsync(new
+        {
+            serviceId = form.ServiceId, description = form.Description,
+            desiredDate = form.DesiredDate?.ToString("yyyy-MM-dd")
+        });
+        guardando = false;
+        if (r is null) { errorForm = "Error al guardar."; return; }
+        mostrarFormulario = false;
+        await Cargar();
+    }
+
+    private void AbrirAtender(SolicitudDto s)
+    {
+        atendiendo = s;
+        nuevoEstado = "under_review";
+        respuesta = s.Response ?? "";
+        mostrarAtender = true;
+    }
+
+    private async Task GuardarAtencion()
+    {
+        if (atendiendo is null) return;
+        await Api.ActualizarSolicitudAsync(atendiendo.Id, new { status = nuevoEstado, response = respuesta });
+        mostrarAtender = false;
+        await Cargar();
+    }
+
+    private static string FormatFecha(string? f) =>
+        DateTime.TryParse(f, out var d) ? d.ToString("dd MMM yyyy") : (f ?? "");
+    private static string EstadoNombre(string s) => s switch
+    { "new" => "Nueva", "under_review" => "En revisión", "approved" => "Aprobada", "rejected" => "Rechazada", "completed" => "Completada", _ => s };
+    private static string EstadoClase(string s) => s switch
+    { "approved" => "publicado", "completed" => "completada", "rejected" => "cancelada", "under_review" => "programada", _ => "borrador" };
+}

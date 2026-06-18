@@ -1,0 +1,87 @@
+@page "/"
+@inject SessionService Session
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+@if (Session.IsAuthenticated)
+{
+    var u = Session.Session!.Usuario;
+    <div class="home-container">
+        <div class="welcome-card">
+            <div class="welcome-avatar">@Iniciales(u)</div>
+            <h2 class="welcome-title">¡Bienvenido!</h2>
+            <p class="welcome-name">@u.NombreCompleto</p>
+            @if (!string.IsNullOrEmpty(u.ParishName))
+            {
+                <p class="welcome-parish">⛪ @u.ParishName</p>
+            }
+            <div class="welcome-roles">
+                @if (u.IsSuperAdmin)      { <span class="role-badge super">Administrador General</span> }
+                else if (u.IsParishAdmin) { <span class="role-badge parish">Administrador de Parroquia</span> }
+                else if (u.IsGroupLeader) { <span class="role-badge leader">Coordinador de Grupo</span> }
+                else                      { <span class="role-badge member">Feligrés</span> }
+            </div>
+        </div>
+
+        <div class="home-hint">
+            @if (Session.Session.Modulos.Any(m => m.PuedeVer && !string.IsNullOrEmpty(m.Ruta)))
+            {
+                <p class="text-muted text-center mb-3">Selecciona un módulo para comenzar.</p>
+                <div class="home-modulos-resumen">
+                    @foreach (var m in Session.Session.Modulos.Where(x => x.PuedeVer && !string.IsNullOrEmpty(x.Ruta)))
+                    {
+                        <a class="home-modulo-link" href="@m.Ruta!.TrimStart('/')">
+                            <span class="home-modulo-icono">@IconoEmoji(m.Clave)</span>
+                            <span>@m.Nombre</span>
+                        </a>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">
+                    <span class="empty-icon">🔒</span>
+                    <p><strong>No tienes módulos asignados todavía.</strong></p>
+                    <p class="text-muted">Contacta al administrador para que te asigne permisos de acceso.</p>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        if (!Session.IsAuthenticated)
+            Nav.NavigateTo("/login", replace: true);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && Session.IsAuthenticated)
+        {
+            var u = Session.Session!.Usuario;
+            if (!string.IsNullOrEmpty(u.ParishColor))
+            {
+                await JS.InvokeVoidAsync("aplicarColorParroquia",
+                    u.ParishColor, u.ParishColorSec ?? "#8B0000");
+            }
+        }
+    }
+
+    private static string Iniciales(UsuarioInfo u)
+    {
+        var n = string.IsNullOrEmpty(u.Nombre) ? "?" : u.Nombre[0].ToString();
+        var a = string.IsNullOrEmpty(u.Apellido) ? "" : u.Apellido[0].ToString();
+        return (n + a).ToUpper();
+    }
+
+    private static string IconoEmoji(string clave) => clave switch
+    {
+        "adoration"     => "🎵", "groups"        => "🎸", "calendar"  => "📅",
+        "settings"      => "⚙️", "home"          => "🏠", "news"      => "📰",
+        "notifications" => "🔔", "donations"     => "💝", "users"     => "👥",
+        "sacraments"    => "⛪", "gallery"       => "🖼️", "intentions"=> "🕯️",
+        "requests"      => "📋", _               => "📦"
+    };
+}

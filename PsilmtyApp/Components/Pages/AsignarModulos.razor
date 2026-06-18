@@ -1,0 +1,386 @@
+@page "/asignar-modulos"
+@inject ApiService Api
+@inject SessionService Session
+@inject NavigationManager Nav
+
+<div class="module-container">
+    <div class="module-header">
+        <h2>🛡️ Asignar Módulos</h2>
+    </div>
+
+    <div class="perm-tabs mb-3">
+        <button class="perm-tab @(tab == "usuario" ? "active" : "")" @onclick='() => tab = "usuario"'>Por Usuario</button>
+        <button class="perm-tab @(tab == "modulo" ? "active" : "")" @onclick='() => tab = "modulo"'>Por Módulo</button>
+    </div>
+
+    @* ══════════ TAB POR USUARIO ══════════ *@
+    @if (tab == "usuario")
+    {
+        <div class="perm-section">
+            <label class="form-label fw-bold">1. Busca el usuario</label>
+            <div class="perm-search-box mb-3">
+                <input class="form-control" placeholder="Escribe nombre o correo..."
+                       value="@busqUsuario" @oninput="BuscarUsuarios" />
+                @if (resUsuarios.Any())
+                {
+                    <div class="search-dropdown">
+                        @foreach (var u in resUsuarios)
+                        {
+                            <div class="search-item" @onclick="() => SeleccionarUsuario(u)">
+                                <div class="search-item-avatar">@u.Nombre[0]@u.Apellido[0]</div>
+                                <div><strong>@u.Nombre @u.Apellido</strong><small class="d-block text-muted">@u.Correo — @u.ParishName</small></div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            @if (usuarioSel != null)
+            {
+                <div class="selected-user-card">
+                    <div class="usuario-avatar-lg">@usuarioSel.Nombre[0]@usuarioSel.Apellido[0]</div>
+                    <div class="flex-1">
+                        <strong>@usuarioSel.Nombre @usuarioSel.Apellido</strong>
+                        <div class="text-muted small">@usuarioSel.Correo • @usuarioSel.ParishName</div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="LimpiarUsuario">✕</button>
+                </div>
+
+                <label class="form-label fw-bold mt-3">2. Agrega un módulo</label>
+                <div class="perm-search-box mb-2">
+                    <input class="form-control" placeholder="Buscar módulo..."
+                           value="@busqModulo" @oninput="BuscarModulos" />
+                    @if (resModulos.Any())
+                    {
+                        <div class="search-dropdown">
+                            @foreach (var m in resModulos.Where(m => !accesos.Any(a => a.ModuleId == m.ModuleId)))
+                            {
+                                <div class="search-item" @onclick="() => SeleccionarModuloParaAgregar(m)">
+                                    <div class="search-item-avatar">@IconoEmoji(m.Code)</div>
+                                    <div><strong>@m.Name</strong><small class="d-block text-muted">@m.Description</small></div>
+                                    <span class="ms-auto text-success">+ Agregar</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                @* Configuración del módulo a agregar *@
+                @if (moduloParaAgregar != null)
+                {
+                    <div class="config-modulo-card">
+                        <div class="config-modulo-header">
+                            <span>@IconoEmoji(moduloParaAgregar.Code) @moduloParaAgregar.Name</span>
+                            <button class="btn-close-mini" @onclick="() => moduloParaAgregar = null">✕</button>
+                        </div>
+                        <div class="config-permisos">
+                            <label><input type="checkbox" @bind="nuevoView" /> Ver</label>
+                            <label><input type="checkbox" @bind="nuevoCreate" /> Crear</label>
+                            <label><input type="checkbox" @bind="nuevoEdit" /> Editar</label>
+                            <label><input type="checkbox" @bind="nuevoDelete" /> Eliminar</label>
+                        </div>
+                        <div class="config-vigencia">
+                            <div class="vigencia-toggle">
+                                <label><input type="checkbox" @bind="conVigencia" /> Definir vigencia (tiempo de vida)</label>
+                            </div>
+                            @if (conVigencia)
+                            {
+                                <div class="row mt-2">
+                                    <div class="col">
+                                        <label class="form-label small">Desde</label>
+                                        <input type="date" class="form-control form-control-sm"
+                                               value="@validFrom" @onchange="e => validFrom = e.Value?.ToString()" />
+                                    </div>
+                                    <div class="col">
+                                        <label class="form-label small">Hasta</label>
+                                        <input type="date" class="form-control form-control-sm"
+                                               value="@validTo" @onchange="e => validTo = e.Value?.ToString()" />
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <button class="btn btn-primary btn-sm w-100 mt-2" @onclick="GuardarAcceso" disabled="@guardando">
+                            @(guardando ? "Guardando..." : "Asignar módulo")
+                        </button>
+                    </div>
+                }
+
+                <label class="form-label fw-bold mt-3">Módulos asignados</label>
+                @if (cargandoAccesos)
+                {
+                    <div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>
+                }
+                else if (!accesos.Any())
+                {
+                    <p class="text-muted">Este usuario no tiene módulos asignados directamente.</p>
+                }
+                else
+                {
+                    <div class="accesos-list">
+                        @foreach (var a in accesos)
+                        {
+                            <div class="acceso-row @(a.Vigente ? "" : "expirado")">
+                                <span class="acceso-icon">@IconoEmoji(a.Code)</span>
+                                <div class="flex-1">
+                                    <strong>@a.Name</strong>
+                                    <div class="acceso-perms">
+                                        @if (a.CanView)   { <span class="mini-badge">Ver</span> }
+                                        @if (a.CanCreate) { <span class="mini-badge">Crear</span> }
+                                        @if (a.CanEdit)   { <span class="mini-badge">Editar</span> }
+                                        @if (a.CanDelete) { <span class="mini-badge">Eliminar</span> }
+                                    </div>
+                                    @if (a.ValidFrom != null || a.ValidTo != null)
+                                    {
+                                        <div class="acceso-vigencia">
+                                            🗓️ @(FormatF(a.ValidFrom) ?? "siempre") → @(FormatF(a.ValidTo) ?? "permanente")
+                                            @if (!a.Vigente) { <span class="badge-expirado">Expirado / no vigente</span> }
+                                        </div>
+                                    }
+                                </div>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => Revocar(a)">Quitar</button>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (savedOk) { <div class="save-toast">✓ Guardado</div> }
+            }
+            else
+            {
+                <div class="empty-state"><span class="empty-icon">🔍</span><p>Busca un usuario para asignarle módulos.</p></div>
+            }
+        </div>
+    }
+
+    @* ══════════ TAB POR MÓDULO ══════════ *@
+    @if (tab == "modulo")
+    {
+        <div class="perm-section">
+            <label class="form-label fw-bold">1. Busca el módulo</label>
+            <div class="perm-search-box mb-3">
+                <input class="form-control" placeholder="Escribe el nombre del módulo..."
+                       value="@busqModuloTab" @oninput="BuscarModulosTab" />
+                @if (resModulosTab.Any())
+                {
+                    <div class="search-dropdown">
+                        @foreach (var m in resModulosTab)
+                        {
+                            <div class="search-item" @onclick="() => SeleccionarModuloTab(m)">
+                                <div class="search-item-avatar">@IconoEmoji(m.Code)</div>
+                                <div><strong>@m.Name</strong><small class="d-block text-muted">@m.Description</small></div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            @if (moduloSelTab != null)
+            {
+                <div class="modulo-selected-header">
+                    <span class="modulo-icon-lg">@IconoEmoji(moduloSelTab.Code)</span>
+                    <div><h5 class="mb-0">@moduloSelTab.Name</h5><small class="text-muted">Usuarios con acceso</small></div>
+                </div>
+
+                <label class="form-label fw-bold mt-2">2. Agrega usuarios</label>
+                <div class="perm-search-box mb-3">
+                    <input class="form-control" placeholder="Buscar usuario..."
+                           value="@busqUsuTab" @oninput="BuscarUsuariosTab" />
+                    @if (resUsuTab.Any())
+                    {
+                        <div class="search-dropdown">
+                            @foreach (var u in resUsuTab.Where(u => !usuariosAcceso.Any(x => x.Id == u.Id)))
+                            {
+                                <div class="search-item" @onclick="() => AgregarUsuarioAModulo(u)">
+                                    <div class="search-item-avatar">@u.Nombre[0]@u.Apellido[0]</div>
+                                    <div><strong>@u.Nombre @u.Apellido</strong><small class="d-block text-muted">@u.Correo</small></div>
+                                    <span class="ms-auto text-success">+ Agregar</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                @if (usuariosAcceso.Any())
+                {
+                    <div class="chips-container">
+                        @foreach (var u in usuariosAcceso)
+                        {
+                            <div class="user-chip @(u.Vigente ? "" : "chip-expirado")">
+                                <span class="user-chip-avatar">@u.Nombre[0]@u.Apellido[0]</span>
+                                <span>@u.Nombre @u.Apellido</span>
+                                @if (u.ValidTo != null) { <span class="chip-fecha">→ @FormatF(u.ValidTo)</span> }
+                                <button class="user-chip-remove" @onclick="() => QuitarUsuarioDeModulo(u)">✕</button>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">Ningún usuario tiene acceso directo a este módulo.</p>
+                }
+            }
+            else
+            {
+                <div class="empty-state"><span class="empty-icon">📦</span><p>Busca un módulo para gestionar sus usuarios.</p></div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private string tab = "usuario";
+
+    // Tab usuario
+    private string busqUsuario = "", busqModulo = "";
+    private List<UsuarioDto> resUsuarios = [];
+    private List<ModuloBusquedaDto> resModulos = [];
+    private UsuarioDto? usuarioSel;
+    private ModuloBusquedaDto? moduloParaAgregar;
+    private List<AccesoUsuarioDto> accesos = [];
+    private bool cargandoAccesos, guardando, savedOk;
+    private bool nuevoView = true, nuevoCreate, nuevoEdit, nuevoDelete;
+    private bool conVigencia;
+    private string? validFrom, validTo;
+
+    // Tab módulo
+    private string busqModuloTab = "", busqUsuTab = "";
+    private List<ModuloBusquedaDto> resModulosTab = [];
+    private List<UsuarioDto> resUsuTab = [];
+    private ModuloBusquedaDto? moduloSelTab;
+    private List<UsuarioAccesoDto> usuariosAcceso = [];
+
+    protected override void OnInitialized()
+    {
+        if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+        var permiso = Session.ObtenerPermiso("module_assignment");
+        // Solo quien puede gestionar (superadmin, padre, admin parroquia, coordinadores)
+        if (permiso?.PuedeVer != true && Session.Session?.Usuario.IsSuperAdmin != true
+            && Session.Session?.Usuario.IsParishAdmin != true
+            && Session.Session?.Usuario.IsGroupLeader != true)
+        {
+            Nav.NavigateTo("/");
+        }
+    }
+
+    // ── Tab usuario ──────────────────────────────────────────
+    private async Task BuscarUsuarios(ChangeEventArgs e)
+    {
+        busqUsuario = e.Value?.ToString() ?? "";
+        resUsuarios = busqUsuario.Length >= 2 ? await Api.BuscarUsuariosAsync(busqUsuario) : [];
+    }
+
+    private async Task SeleccionarUsuario(UsuarioDto u)
+    {
+        usuarioSel = u;
+        busqUsuario = $"{u.Nombre} {u.Apellido}";
+        resUsuarios = [];
+        await RecargarAccesos();
+    }
+
+    private void LimpiarUsuario()
+    {
+        usuarioSel = null; busqUsuario = ""; accesos = []; moduloParaAgregar = null;
+    }
+
+    private async Task RecargarAccesos()
+    {
+        if (usuarioSel is null) return;
+        cargandoAccesos = true;
+        accesos = await Api.GetAccesosDeUsuarioAsync(usuarioSel.Id);
+        cargandoAccesos = false;
+    }
+
+    private async Task BuscarModulos(ChangeEventArgs e)
+    {
+        busqModulo = e.Value?.ToString() ?? "";
+        resModulos = busqModulo.Length >= 1 ? await Api.BuscarModulosAsync(busqModulo) : [];
+    }
+
+    private void SeleccionarModuloParaAgregar(ModuloBusquedaDto m)
+    {
+        moduloParaAgregar = m;
+        busqModulo = ""; resModulos = [];
+        nuevoView = true; nuevoCreate = nuevoEdit = nuevoDelete = false;
+        conVigencia = false; validFrom = validTo = null;
+    }
+
+    private async Task GuardarAcceso()
+    {
+        if (usuarioSel is null || moduloParaAgregar is null) return;
+        guardando = true;
+        var ok = await Api.AsignarModuloConVigenciaAsync(
+            usuarioSel.Id, moduloParaAgregar.ModuleId,
+            new PermisosFlags { View = nuevoView, Create = nuevoCreate, Edit = nuevoEdit, Delete = nuevoDelete },
+            conVigencia ? validFrom : null,
+            conVigencia ? validTo : null);
+        guardando = false;
+        if (ok)
+        {
+            moduloParaAgregar = null;
+            await RecargarAccesos();
+            await MostrarToast();
+        }
+    }
+
+    private async Task Revocar(AccesoUsuarioDto a)
+    {
+        if (usuarioSel is null) return;
+        if (await Api.RevocarModuloAsync(usuarioSel.Id, a.ModuleId))
+            await RecargarAccesos();
+    }
+
+    // ── Tab módulo ───────────────────────────────────────────
+    private async Task BuscarModulosTab(ChangeEventArgs e)
+    {
+        busqModuloTab = e.Value?.ToString() ?? "";
+        resModulosTab = busqModuloTab.Length >= 1 ? await Api.BuscarModulosAsync(busqModuloTab) : [];
+    }
+
+    private async Task SeleccionarModuloTab(ModuloBusquedaDto m)
+    {
+        moduloSelTab = m;
+        busqModuloTab = ""; resModulosTab = [];
+        usuariosAcceso = await Api.GetUsuariosConAccesoAsync(m.ModuleId);
+    }
+
+    private async Task BuscarUsuariosTab(ChangeEventArgs e)
+    {
+        busqUsuTab = e.Value?.ToString() ?? "";
+        resUsuTab = busqUsuTab.Length >= 2 ? await Api.BuscarUsuariosAsync(busqUsuTab) : [];
+    }
+
+    private async Task AgregarUsuarioAModulo(UsuarioDto u)
+    {
+        if (moduloSelTab is null) return;
+        await Api.AsignarModuloConVigenciaAsync(u.Id, moduloSelTab.ModuleId,
+            new PermisosFlags { View = true }, null, null);
+        busqUsuTab = ""; resUsuTab = [];
+        usuariosAcceso = await Api.GetUsuariosConAccesoAsync(moduloSelTab.ModuleId);
+    }
+
+    private async Task QuitarUsuarioDeModulo(UsuarioAccesoDto u)
+    {
+        if (moduloSelTab is null) return;
+        await Api.RevocarModuloAsync(u.Id, moduloSelTab.ModuleId);
+        usuariosAcceso.RemoveAll(x => x.Id == u.Id);
+    }
+
+    private async Task MostrarToast()
+    {
+        savedOk = true; StateHasChanged();
+        await Task.Delay(2000);
+        savedOk = false; StateHasChanged();
+    }
+
+    private static string? FormatF(string? f) =>
+        DateTime.TryParse(f, out var d) ? d.ToString("dd/MM/yyyy") : f;
+
+    private static string IconoEmoji(string code) => code switch
+    {
+        "adoration" => "🎵", "groups" => "🎸", "calendar" => "📅",
+        "settings" => "⚙️", "home" => "🏠", "news" => "📰",
+        "notifications" => "🔔", "donations" => "💝", "users" => "👥",
+        "sacraments" => "⛪", "gallery" => "🖼️", "intentions" => "🕯️",
+        "requests" => "📋", "module_assignment" => "🛡️", _ => "📦"
+    };
+}

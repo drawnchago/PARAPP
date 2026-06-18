@@ -1,0 +1,603 @@
+@page "/configuracion"
+@inject ApiService Api
+@inject SessionService Session
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<div class="module-container">
+    <div class="module-header">
+        <h2>⚙️ Configuración</h2>
+    </div>
+
+    @* ══════════ SELECTOR DE PARROQUIA (solo superadmin) ══════════ *@
+    @if (esSuperAdmin && parroquias.Any())
+    {
+        <div class="pref-section">
+            <div class="pref-section-title">🏛️ Parroquia a configurar</div>
+            <select class="form-select" value="@parroquiaSelId"
+                    @onchange="OnParroquiaSeleccionada">
+                @foreach (var p in parroquias)
+                {
+                    <option value="@p.Id">@p.Name @(string.IsNullOrEmpty(p.City) ? "" : $"— {p.City}")</option>
+                }
+            </select>
+        </div>
+    }
+
+    @* ══════════ DATOS DE LA PARROQUIA (solo administradores) ══════════ *@
+    @if (puedeEditarParroquia && parroquia != null)
+    {
+        <div class="pref-section">
+            <div class="pref-section-title">⛪ Datos de la Parroquia</div>
+
+            <div class="parroquia-form">
+                @* ── COLOR DE LA APLICACIÓN ── *@
+                <div class="color-app-box">
+                    <div class="color-app-title">🎨 Color de la aplicación</div>
+                    <div class="color-app-row">
+                        <div class="color-picker-item">
+                            <label class="form-label">Color principal</label>
+                            <input type="color" class="form-control form-control-color"
+                                   value="@(parroquia.PrimaryColor ?? "#CC0000")"
+                                   @onchange="e => parroquia.PrimaryColor = e.Value?.ToString()" />
+                        </div>
+                        <div class="color-picker-item">
+                            <label class="form-label">Color secundario</label>
+                            <input type="color" class="form-control form-control-color"
+                                   value="@(parroquia.SecondaryColor ?? "#8B0000")"
+                                   @onchange="e => parroquia.SecondaryColor = e.Value?.ToString()" />
+                        </div>
+                        <div class="color-preview" style="background: linear-gradient(135deg, @(parroquia.PrimaryColor ?? "#CC0000"), @(parroquia.SecondaryColor ?? "#8B0000"))">
+                            Vista previa
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary w-100 mt-2" @onclick="AplicarColorPreview">
+                        Probar color ahora
+                    </button>
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label">Nombre de la parroquia</label>
+                    <input class="form-control" @bind="parroquia.Name" />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Dirección</label>
+                    <input class="form-control" @bind="parroquia.Address" />
+                </div>
+                <div class="row">
+                    <div class="col mb-2">
+                        <label class="form-label">Colonia</label>
+                        <input class="form-control" @bind="parroquia.Neighborhood" />
+                    </div>
+                    <div class="col mb-2">
+                        <label class="form-label">Código postal</label>
+                        <input class="form-control" @bind="parroquia.ZipCode" />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col mb-2">
+                        <label class="form-label">Ciudad</label>
+                        <input class="form-control" @bind="parroquia.City" />
+                    </div>
+                    <div class="col mb-2">
+                        <label class="form-label">Estado</label>
+                        <input class="form-control" @bind="parroquia.State" />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col mb-2">
+                        <label class="form-label">Teléfono</label>
+                        <input class="form-control" @bind="parroquia.Phone" />
+                    </div>
+                    <div class="col mb-2">
+                        <label class="form-label">Celular</label>
+                        <input class="form-control" @bind="parroquia.MobilePhone" />
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Correo</label>
+                    <input type="email" class="form-control" @bind="parroquia.Email" />
+                </div>
+                <div class="logo-login-box">
+                    <div class="color-app-title">🖼️ Logo del login</div>
+                    <p class="logo-hint">Medida recomendada: <strong>256 × 256 px</strong>, PNG con fondo transparente o SVG (máx. 2 MB).</p>
+
+                    <label class="form-label">Subir logo desde tu dispositivo</label>
+                    <InputFile class="form-control" OnChange="OnLogoSeleccionado"
+                               accept="image/png,image/jpeg,image/svg+xml,image/webp" />
+
+                    @if (subiendoLogo)
+                    {
+                        <div class="mt-2"><span class="spinner-border spinner-border-sm me-2"></span>Subiendo logo...</div>
+                    }
+                    @if (errorLogo != null) { <div class="alert alert-danger py-2 mt-2">@errorLogo</div> }
+                    @if (logoSubido) { <div class="text-success mt-2">✓ Logo subido y guardado</div> }
+
+                    <div class="logo-preview-wrap">
+                        <span class="logo-preview-label">Logo actual:</span>
+                        <img src="@(string.IsNullOrEmpty(parroquia.LogoUrl) ? "images/login/default.svg" : parroquia.LogoUrl)"
+                             class="logo-preview-img" alt="preview" />
+                    </div>
+                    <small class="text-muted">El logo se guarda en el servidor; en el login aparecerá al seleccionar tu parroquia.</small>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Descripción</label>
+                    <textarea class="form-control" rows="2" @bind="parroquia.Description"></textarea>
+                </div>
+
+                <button class="btn btn-primary w-100" @onclick="GuardarParroquia" disabled="@guardandoParroquia">
+                    @(guardandoParroquia ? "Guardando..." : "Guardar datos de la parroquia")
+                </button>
+                @if (parroquiaGuardada) { <div class="text-success text-center mt-2">✓ Datos guardados</div> }
+            </div>
+        </div>
+    }
+
+    @if (cargando)
+    {
+        <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (prefs is null)
+    {
+        <div class="alert alert-warning">No se pudieron cargar las preferencias.</div>
+    }
+    else
+    {
+        <!-- IDIOMA -->
+        <div class="pref-section">
+            <div class="pref-section-title">🌐 Idioma</div>
+            <div class="lang-grid">
+                @foreach (var lang in lenguajes)
+                {
+                    var sel = lang.Id == prefs.LenguajeId;
+                    <button class="lang-card @(sel ? "selected" : "")"
+                            @onclick="() => CambiarLenguaje(lang.Id)">
+                        <span class="flag">@lang.BanderaEmoji</span>
+                        <span>@lang.Nombre</span>
+                        <small>@lang.NombreNativo</small>
+                        @if (sel) { <span class="check-mark">✓</span> }
+                    </button>
+                }
+            </div>
+        </div>
+
+      @if (!esFeligres)
+      {
+        <!-- TEMA -->
+        <div class="pref-section">
+            <div class="pref-section-title">🎨 Apariencia</div>
+            <div class="tema-grid">
+                @foreach (var t in temas)
+                {
+                    var sel = t.Id == prefs.TemaId;
+                    <button class="tema-card @(sel ? "selected" : "")"
+                            @onclick="() => CambiarTema(t)">
+                        <div class="tema-preview-box">
+                            <div class="tema-bar" style="background:@t.ColorPrimario;"></div>
+                            <div class="tema-body-preview" style="background:@t.ColorFondo;">
+                                <div class="tema-surface-chip" style="background:@t.ColorSuperficie;color:@t.ColorTexto;">
+                                    Aa
+                                </div>
+                                <div class="tema-acento-dot" style="background:@t.ColorAcento;"></div>
+                            </div>
+                        </div>
+                        <div class="tema-nombre" style="color:@(sel ? t.ColorPrimario : "inherit")">
+                            @t.Nombre @(t.EsOscuro ? "🌙" : "")
+                        </div>
+                        @if (sel) { <div class="check-mark">✓</div> }
+                    </button>
+                }
+            </div>
+        </div>
+
+        <!-- NOTIFICACIONES -->
+        <div class="pref-section">
+            <div class="pref-section-title">🔔 Notificaciones</div>
+            <div class="toggle-list">
+                <ToggleRow Label="Push activas"    Value="@prefs.NotifPushActivas"    OnChange="v => { prefs.NotifPushActivas = v;    Guardar(); }" />
+                <ToggleRow Label="Eventos"         Value="@prefs.NotifEventos"         OnChange="v => { prefs.NotifEventos = v;         Guardar(); }" />
+                <ToggleRow Label="Noticias"        Value="@prefs.NotifNoticias"        OnChange="v => { prefs.NotifNoticias = v;        Guardar(); }" />
+                <ToggleRow Label="Recordatorios"   Value="@prefs.NotifRecordatorios"   OnChange="v => { prefs.NotifRecordatorios = v;   Guardar(); }" />
+                <ToggleRow Label="Adoración"       Value="@prefs.NotifAdoracion"       OnChange="v => { prefs.NotifAdoracion = v;       Guardar(); }" />
+                <ToggleRow Label="Sonido"          Value="@prefs.NotifSonido"          OnChange="v => { prefs.NotifSonido = v;          Guardar(); }" />
+                <ToggleRow Label="Vibración"       Value="@prefs.NotifVibracion"       OnChange="v => { prefs.NotifVibracion = v;       Guardar(); }" />
+            </div>
+        </div>
+
+        <!-- CALENDARIO -->
+        <div class="pref-section">
+            <div class="pref-section-title">📅 Calendario</div>
+            <div class="pref-field">
+                <label class="form-label">Vista predeterminada</label>
+                <select class="form-select"
+                        value="@prefs.CalendarioVista"
+                        @onchange="OnCalendarioVistaChange">
+                    <option value="mes">Mes</option>
+                    <option value="semana">Semana</option>
+                    <option value="dia">Día</option>
+                    <option value="agenda">Agenda</option>
+                </select>
+            </div>
+            <div class="pref-field mt-2">
+                <label class="form-label">Primer día de la semana</label>
+                <div class="btn-group w-100">
+                    <button class="btn @(prefs.CalendarioPrimerDia == 0 ? "btn-primary" : "btn-outline-secondary")"
+                            @onclick="() => { prefs.CalendarioPrimerDia = 0; Guardar(); }">Domingo</button>
+                    <button class="btn @(prefs.CalendarioPrimerDia == 1 ? "btn-primary" : "btn-outline-secondary")"
+                            @onclick="() => { prefs.CalendarioPrimerDia = 1; Guardar(); }">Lunes</button>
+                </div>
+            </div>
+        </div>
+      }
+
+        <!-- ACCESIBILIDAD -->
+        <div class="pref-section">
+            <div class="pref-section-title">♿ Accesibilidad</div>
+            <div class="pref-field">
+                <label class="form-label">Tamaño de fuente</label>
+                <div class="font-size-btns">
+                    @foreach (var fs in new[] { ("pequeño","Pequeño","13px"), ("normal","Normal","16px"), ("grande","Grande","20px"), ("extra_grande","Extra","24px") })
+                    {
+                        <button class="font-btn @(prefs.TamanoFuente == fs.Item1 ? "selected" : "")"
+                                style="font-size:@fs.Item3"
+                                @onclick="() => { prefs.TamanoFuente = fs.Item1; Guardar(); }">
+                            @fs.Item2
+                        </button>
+                    }
+                </div>
+            </div>
+            <ToggleRow Label="Alto contraste" Value="@prefs.AltoContraste"
+                       OnChange="v => { prefs.AltoContraste = v; Guardar(); }" />
+        </div>
+
+        <!-- MIS DATOS (todos los usuarios) -->
+        @if (perfil != null)
+        {
+            <div class="pref-section">
+                <div class="pref-section-title">👤 Mis datos</div>
+                <div class="parroquia-form">
+                    <div class="row">
+                        <div class="col mb-2">
+                            <label class="form-label">Nombre</label>
+                            <input class="form-control" @bind="perfil.Nombre" />
+                        </div>
+                        <div class="col mb-2">
+                            <label class="form-label">Apellidos</label>
+                            <input class="form-control" @bind="perfil.Apellido" />
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Correo</label>
+                        <input class="form-control" value="@perfil.Correo" disabled />
+                        <small class="text-muted">El correo no se puede cambiar.</small>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Teléfono</label>
+                        <input class="form-control" @bind="perfil.Telefono" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Dirección</label>
+                        <input class="form-control" @bind="perfil.Direccion" />
+                    </div>
+                    <div class="row">
+                        <div class="col mb-2">
+                            <label class="form-label">Ciudad</label>
+                            <input class="form-control" @bind="perfil.Ciudad" />
+                        </div>
+                        <div class="col mb-2">
+                            <label class="form-label">Estado</label>
+                            <input class="form-control" @bind="perfil.Estado" />
+                        </div>
+                    </div>
+                    <button class="btn btn-primary w-100" @onclick="GuardarPerfil" disabled="@guardandoPerfil">
+                        @(guardandoPerfil ? "Guardando..." : "Guardar mis datos")
+                    </button>
+                    @if (perfilGuardado) { <div class="text-success text-center mt-2">✓ Datos actualizados</div> }
+                </div>
+            </div>
+
+            <!-- CAMBIAR CONTRASEÑA (todos) -->
+            <div class="pref-section">
+                <div class="pref-section-title">🔒 Cambiar contraseña</div>
+                <div class="parroquia-form">
+                    <div class="mb-2">
+                        <label class="form-label">Contraseña actual</label>
+                        <input type="password" class="form-control" @bind="passActual" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Nueva contraseña <small class="text-muted">(mín. 6)</small></label>
+                        <input type="password" class="form-control" @bind="passNueva" />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Confirmar nueva contraseña</label>
+                        <input type="password" class="form-control" @bind="passConfirma" />
+                    </div>
+                    @if (errorPass != null) { <div class="alert alert-danger py-2">@errorPass</div> }
+                    @if (passCambiada) { <div class="alert alert-success py-2">✓ Contraseña actualizada</div> }
+                    <button class="btn btn-primary w-100" @onclick="CambiarPassword" disabled="@guardandoPass">
+                        @(guardandoPass ? "Guardando..." : "Cambiar contraseña")
+                    </button>
+                </div>
+            </div>
+        }
+
+        @if (savedOk)
+        {
+            <div class="save-toast">✓ Preferencias guardadas</div>
+        }
+    }
+</div>
+
+@code {
+    private PreferenciasDto? prefs;
+    private List<LenguajeDto> lenguajes = [];
+    private List<TemaDto> temas = [];
+    private bool cargando = true;
+    private bool savedOk;
+
+    // Parroquia
+    private ParroquiaDto? parroquia;
+    private bool puedeEditarParroquia;
+    private bool esSuperAdmin;
+    private bool esFeligres;
+    private bool guardandoParroquia, parroquiaGuardada;
+    private List<ParroquiaDto> parroquias = [];
+    private uint parroquiaSelId;
+
+    // Mis datos + contraseña
+    private PerfilDto? perfil;
+    private bool guardandoPerfil, perfilGuardado;
+    private string passActual = "", passNueva = "", passConfirma = "";
+    private bool guardandoPass, passCambiada;
+    private string? errorPass;
+
+    // Subida de logo
+    private bool subiendoLogo, logoSubido;
+    private string? errorLogo;
+
+    private async Task OnLogoSeleccionado(InputFileChangeEventArgs e)
+    {
+        if (parroquia is null) return;
+        errorLogo = null; logoSubido = false;
+
+        var file = e.File;
+        if (file.Size > 2 * 1024 * 1024)
+        {
+            errorLogo = "La imagen debe pesar menos de 2 MB.";
+            return;
+        }
+
+        subiendoLogo = true; StateHasChanged();
+        try
+        {
+            // Copiar a memoria para enviarlo
+            using var ms = new MemoryStream();
+            await file.OpenReadStream(2 * 1024 * 1024).CopyToAsync(ms);
+            ms.Position = 0;
+
+            var (url, error) = await Api.SubirLogoParroquiaAsync(
+                ms, file.Name, esSuperAdmin ? parroquia.Id : null);
+
+            if (url != null)
+            {
+                parroquia.LogoUrl = url;
+                logoSubido = true;
+            }
+            else { errorLogo = error ?? "No se pudo subir el logo."; }
+        }
+        catch { errorLogo = "Error al subir el logo. Verifica tu conexión."; }
+        finally { subiendoLogo = false; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+
+        var u = Session.Session!.Usuario;
+        esSuperAdmin = u.IsSuperAdmin;
+        puedeEditarParroquia = u.IsSuperAdmin || u.IsParishAdmin;
+        esFeligres = !u.IsSuperAdmin && !u.IsParishAdmin && !u.IsGroupLeader;
+
+        if (esSuperAdmin)
+        {
+            parroquias = await Api.GetParroquiasAsync();
+            parroquia = parroquias.FirstOrDefault();
+            parroquiaSelId = parroquia?.Id ?? 0;
+        }
+        else if (puedeEditarParroquia)
+        {
+            parroquia = await Api.GetMiParroquiaAsync();
+        }
+
+        perfil = await Api.GetMiPerfilAsync();
+
+        await Cargar();
+    }
+
+    private async Task GuardarPerfil()
+    {
+        if (perfil is null) return;
+        guardandoPerfil = true;
+        var actualizado = await Api.ActualizarMiPerfilAsync(new ActualizarPerfilRequest
+        {
+            FirstName   = perfil.Nombre,
+            LastName    = perfil.Apellido,
+            MobilePhone = perfil.Telefono,
+            Address     = perfil.Direccion,
+            City        = perfil.Ciudad,
+            State       = perfil.Estado
+        });
+        guardandoPerfil = false;
+        if (actualizado != null)
+        {
+            perfil = actualizado;
+            perfilGuardado = true;
+            StateHasChanged();
+            await Task.Delay(2500);
+            perfilGuardado = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CambiarPassword()
+    {
+        errorPass = null; passCambiada = false;
+
+        if (string.IsNullOrWhiteSpace(passActual)) { errorPass = "Ingresa tu contraseña actual."; return; }
+        if (passNueva.Length < 6) { errorPass = "La nueva contraseña debe tener al menos 6 caracteres."; return; }
+        if (passNueva != passConfirma) { errorPass = "Las contraseñas no coinciden."; return; }
+
+        guardandoPass = true; StateHasChanged();
+        var err = await Api.CambiarMiPasswordAsync(new CambiarPasswordRequest
+        {
+            CurrentPassword = passActual,
+            NewPassword = passNueva
+        });
+        guardandoPass = false;
+
+        if (err is null)
+        {
+            passActual = passNueva = passConfirma = "";
+            passCambiada = true;
+        }
+        else { errorPass = err; }
+    }
+
+    private void OnParroquiaSeleccionada(ChangeEventArgs e)
+    {
+        if (uint.TryParse(e.Value?.ToString(), out var id))
+        {
+            parroquiaSelId = id;
+            parroquia = parroquias.FirstOrDefault(p => p.Id == id);
+        }
+    }
+
+    private async Task AplicarColorPreview()
+    {
+        if (parroquia is null) return;
+        await JS.InvokeVoidAsync("aplicarColorParroquia",
+            parroquia.PrimaryColor ?? "#CC0000",
+            parroquia.SecondaryColor ?? "#8B0000");
+    }
+
+    private async Task GuardarParroquia()
+    {
+        if (parroquia is null) return;
+        guardandoParroquia = true;
+
+        var body = new
+        {
+            name           = parroquia.Name,
+            address        = parroquia.Address,
+            neighborhood   = parroquia.Neighborhood,
+            city           = parroquia.City,
+            state          = parroquia.State,
+            zipCode        = parroquia.ZipCode,
+            phone          = parroquia.Phone,
+            mobilePhone    = parroquia.MobilePhone,
+            email          = parroquia.Email,
+            logoUrl        = parroquia.LogoUrl,
+            description    = parroquia.Description,
+            primaryColor   = parroquia.PrimaryColor,
+            secondaryColor = parroquia.SecondaryColor
+        };
+
+        // superadmin guarda por id; admin de parroquia guarda la suya
+        var actualizada = esSuperAdmin
+            ? await Api.ActualizarParroquiaAsync(parroquia.Id, body)
+            : await Api.ActualizarMiParroquiaAsync(body);
+
+        guardandoParroquia = false;
+        if (actualizada != null)
+        {
+            actualizada.PrimaryColor   ??= parroquia.PrimaryColor;
+            actualizada.SecondaryColor ??= parroquia.SecondaryColor;
+            // Mantener la selección en la lista (superadmin)
+            var idx = parroquias.FindIndex(p => p.Id == actualizada.Id);
+            if (idx >= 0) parroquias[idx] = actualizada;
+            parroquia = actualizada;
+
+            // Aplicar el color si es mi propia parroquia
+            if (!esSuperAdmin || parroquia.Id == Session.Session!.Usuario.ParishId)
+            {
+                await JS.InvokeVoidAsync("aplicarColorParroquia",
+                    parroquia.PrimaryColor ?? "#CC0000",
+                    parroquia.SecondaryColor ?? "#8B0000");
+            }
+
+            parroquiaGuardada = true;
+            StateHasChanged();
+            await Task.Delay(2500);
+            parroquiaGuardada = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        var tasks = Task.WhenAll(
+            Api.GetLenguajesAsync().ContinueWith(t => lenguajes = t.Result),
+            Api.GetTemasAsync().ContinueWith(t => temas = t.Result),
+            Api.GetPreferenciasAsync().ContinueWith(t => prefs = t.Result)
+        );
+        await tasks;
+        cargando = false;
+    }
+
+    private async Task CambiarLenguaje(uint id)
+    {
+        if (prefs is null) return;
+        prefs.LenguajeId = id;
+        await GuardarAsync(new ActualizarPreferenciasRequest { LenguajeId = id });
+    }
+
+    private async Task CambiarTema(TemaDto tema)
+    {
+        if (prefs is null) return;
+        prefs.TemaId = tema.Id;
+        await GuardarAsync(new ActualizarPreferenciasRequest { TemaId = tema.Id });
+        await JS.InvokeVoidAsync("aplicarTema",
+            tema.ColorPrimario, tema.ColorSecundario, tema.ColorFondo,
+            tema.ColorSuperficie, tema.ColorTexto, tema.ColorTextoSuave,
+            tema.ColorAcento, tema.ColorError);
+    }
+
+    private async void Guardar()
+    {
+        if (prefs is null) return;
+        await GuardarAsync(new ActualizarPreferenciasRequest
+        {
+            LenguajeId        = prefs.LenguajeId,
+            TemaId            = prefs.TemaId,
+            NotifPushActivas  = prefs.NotifPushActivas,
+            NotifEventos      = prefs.NotifEventos,
+            NotifNoticias     = prefs.NotifNoticias,
+            NotifRecordatorios= prefs.NotifRecordatorios,
+            NotifAdoracion    = prefs.NotifAdoracion,
+            NotifSonido       = prefs.NotifSonido,
+            NotifVibracion    = prefs.NotifVibracion,
+            CalendarioVista   = prefs.CalendarioVista,
+            CalendarioPrimerDia = prefs.CalendarioPrimerDia,
+            TamanoFuente      = prefs.TamanoFuente,
+            AltoContraste     = prefs.AltoContraste
+        });
+    }
+
+    private void OnCalendarioVistaChange(ChangeEventArgs e)
+    {
+        if (prefs is null) return;
+        prefs.CalendarioVista = e.Value?.ToString() ?? "mes";
+        Guardar();
+    }
+
+    private async Task GuardarAsync(ActualizarPreferenciasRequest req)
+    {
+        await Api.ActualizarPreferenciasAsync(req);
+        savedOk = true;
+        StateHasChanged();
+        await Task.Delay(2500);
+        savedOk = false;
+        StateHasChanged();
+    }
+}

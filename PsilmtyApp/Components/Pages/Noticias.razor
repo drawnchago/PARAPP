@@ -1,0 +1,149 @@
+@page "/noticias"
+@inject ApiService Api
+@inject SessionService Session
+@inject NavigationManager Nav
+
+<div class="module-container">
+    <div class="module-header">
+        <h2>📰 Noticias</h2>
+        @if (permiso?.PuedeCrear == true)
+        {
+            <button class="btn btn-primary" @onclick="AbrirFormulario">+ Nueva</button>
+        }
+    </div>
+
+    @if (cargando)
+    {
+        <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (!noticias.Any())
+    {
+        <div class="empty-state"><span class="empty-icon">📭</span><p>No hay noticias publicadas.</p></div>
+    }
+    else
+    {
+        <div class="items-grid">
+            @foreach (var n in noticias)
+            {
+                <div class="news-card">
+                    @if (!string.IsNullOrEmpty(n.ImageUrl))
+                    {
+                        <img src="@n.ImageUrl" class="news-image" alt="@n.Title" />
+                    }
+                    else
+                    {
+                        <div class="news-image-placeholder">📰</div>
+                    }
+                    <div class="news-body">
+                        <div class="news-meta">
+                            @if (n.IsFeatured) { <span class="badge-featured">⭐ Destacada</span> }
+                            @if (n.CategoryName != null) { <span class="badge-tipo">@n.CategoryName</span> }
+                            @if (!n.IsPublished) { <span class="badge-estado borrador">Borrador</span> }
+                        </div>
+                        <h5 class="news-title">@n.Title</h5>
+                        @if (n.Summary != null) { <p class="news-summary">@n.Summary</p> }
+                        <div class="news-footer">
+                            <small class="text-muted">@n.AuthorName • 👁️ @n.Views</small>
+                            @if (permiso?.PuedeEliminar == true)
+                            {
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => Eliminar(n.Id)">🗑️</button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (mostrarFormulario)
+{
+    <div class="modal-overlay" @onclick="CerrarFormulario">
+        <div class="modal-card" @onclick:stopPropagation>
+            <h4>Nueva Noticia</h4>
+            <div class="mb-3">
+                <label class="form-label">Título *</label>
+                <input class="form-control" @bind="form.Title" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Categoría</label>
+                <select class="form-select" @bind="form.CategoryId">
+                    <option value="">Sin categoría</option>
+                    @foreach (var c in categorias)
+                    {
+                        <option value="@c.Id">@c.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Resumen</label>
+                <textarea class="form-control" @bind="form.Summary" rows="2"></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Contenido</label>
+                <textarea class="form-control" @bind="form.Content" rows="4"></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">URL de imagen</label>
+                <input class="form-control" @bind="form.ImageUrl" placeholder="https://..." />
+            </div>
+            <div class="d-flex gap-3 mb-3">
+                <label><input type="checkbox" @bind="form.IsPublished" /> Publicar</label>
+                <label><input type="checkbox" @bind="form.IsFeatured" /> Destacar</label>
+            </div>
+
+            @if (errorForm != null) { <div class="alert alert-danger py-2">@errorForm</div> }
+
+            <div class="d-flex gap-2 justify-content-end">
+                <button class="btn btn-secondary" @onclick="CerrarFormulario">Cancelar</button>
+                <button class="btn btn-primary" @onclick="Guardar" disabled="@guardando">
+                    @(guardando ? "Guardando..." : "Guardar")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<NoticiaDto> noticias = [];
+    private List<CategoriaDto> categorias = [];
+    private ModuloPermiso? permiso;
+    private bool cargando = true, mostrarFormulario, guardando;
+    private string? errorForm;
+    private NoticiaForm form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+        permiso = Session.ObtenerPermiso("news");
+        if (permiso?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
+        categorias = await Api.GetNoticiasCategoriasAsync();
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        noticias = await Api.GetNoticiasAsync();
+        cargando = false;
+    }
+
+    private void AbrirFormulario() { form = new(); errorForm = null; mostrarFormulario = true; }
+    private void CerrarFormulario() => mostrarFormulario = false;
+
+    private async Task Guardar()
+    {
+        if (string.IsNullOrWhiteSpace(form.Title)) { errorForm = "El título es requerido."; return; }
+        guardando = true;
+        var r = await Api.CrearNoticiaAsync(form);
+        guardando = false;
+        if (r is null) { errorForm = "Error al guardar."; return; }
+        mostrarFormulario = false;
+        await Cargar();
+    }
+
+    private async Task Eliminar(uint id)
+    {
+        if (await Api.EliminarNoticiaAsync(id)) await Cargar();
+    }
+}

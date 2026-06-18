@@ -1,0 +1,171 @@
+@page "/eventos"
+@inject ApiService Api
+@inject SessionService Session
+@inject NavigationManager Nav
+
+<div class="module-container">
+    <div class="module-header">
+        <h2>📅 Eventos</h2>
+        @if (permiso?.PuedeCrear == true)
+        {
+            <button class="btn btn-primary" @onclick="AbrirFormulario">+ Nuevo</button>
+        }
+    </div>
+
+    @if (cargando)
+    {
+        <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (!eventos.Any())
+    {
+        <div class="empty-state">
+            <span class="empty-icon">🗓️</span>
+            <p>No hay eventos registrados.</p>
+        </div>
+    }
+    else
+    {
+        <div class="items-grid">
+            @foreach (var e in eventos)
+            {
+                <div class="item-card">
+                    <div class="item-card-header">
+                        @if (e.Tipo != null) { <span class="badge-tipo">@e.Tipo</span> }
+                        <span class="badge-estado @e.Estado">@e.Estado</span>
+                    </div>
+                    <h5 class="item-title">@e.Titulo</h5>
+                    <div class="item-meta">
+                        <span>📅 @e.FechaInicio.ToString("dd MMM yyyy HH:mm")</span>
+                        @if (e.FechaFin.HasValue)
+                        {
+                            <span>→ @e.FechaFin.Value.ToString("dd MMM HH:mm")</span>
+                        }
+                    </div>
+                    @if (e.Ubicacion != null)
+                    {
+                        <div class="item-meta"><span>📍 @e.Ubicacion</span></div>
+                    }
+                    @if (e.Adoraciones.Any())
+                    {
+                        <div class="adoradores-chips">
+                            <small class="text-muted">Adoraciones:</small>
+                            @foreach (var a in e.Adoraciones.Take(2))
+                            {
+                                <span class="chip">🎵 @a.Titulo</span>
+                            }
+                        </div>
+                    }
+                    <div class="item-footer">
+                        <small class="text-muted">Por @e.NombreCreador</small>
+                        @if (permiso?.PuedeEliminar == true)
+                        {
+                            <button class="btn btn-sm btn-outline-danger"
+                                    @onclick="() => Eliminar(e.Id)">Eliminar</button>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (mostrarFormulario)
+{
+    <div class="modal-overlay" @onclick="CerrarFormulario">
+        <div class="modal-card" @onclick:stopPropagation>
+            <h4>Nuevo Evento</h4>
+            <div class="mb-3">
+                <label class="form-label">Título *</label>
+                <input class="form-control" @bind="nuevo.Titulo" />
+            </div>
+            <div class="row mb-3">
+                <div class="col">
+                    <label class="form-label">Fecha inicio *</label>
+                    <input type="datetime-local" class="form-control"
+                           value="@nuevo.FechaInicio.ToString("yyyy-MM-ddTHH:mm")"
+                           @onchange="e => nuevo.FechaInicio = DateTime.Parse(e.Value?.ToString() ?? DateTime.Now.ToString())" />
+                </div>
+                <div class="col">
+                    <label class="form-label">Fecha fin</label>
+                    <input type="datetime-local" class="form-control"
+                           @onchange="e => nuevo.FechaFin = string.IsNullOrEmpty(e.Value?.ToString()) ? null : DateTime.Parse(e.Value.ToString()!)" />
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Ubicación</label>
+                <input class="form-control" @bind="nuevo.Ubicacion" placeholder="Salón principal, templo…" />
+            </div>
+            <div class="row mb-3">
+                <div class="col">
+                    <label class="form-label">Tipo</label>
+                    <input class="form-control" @bind="nuevo.Tipo" placeholder="Domingo, Conferencia…" />
+                </div>
+                <div class="col">
+                    <label class="form-label">Capacidad</label>
+                    <input type="number" class="form-control" @bind="nuevo.Capacidad" />
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Descripción</label>
+                <textarea class="form-control" @bind="nuevo.Descripcion" rows="2"></textarea>
+            </div>
+
+            @if (errorForm != null)
+            {
+                <div class="alert alert-danger py-2">@errorForm</div>
+            }
+
+            <div class="d-flex gap-2 justify-content-end">
+                <button class="btn btn-secondary" @onclick="CerrarFormulario">Cancelar</button>
+                <button class="btn btn-primary" @onclick="Guardar" disabled="@guardando">
+                    @(guardando ? "Guardando..." : "Guardar")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<EventoDto> eventos = [];
+    private ModuloPermiso? permiso;
+    private bool cargando = true;
+    private bool mostrarFormulario;
+    private bool guardando;
+    private string? errorForm;
+    private CrearEventoRequest nuevo = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+        permiso = Session.ObtenerPermiso("eventos");
+        if (permiso?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        eventos = await Api.GetEventosAsync();
+        cargando = false;
+    }
+
+    private void AbrirFormulario() { nuevo = new CrearEventoRequest { FechaInicio = DateTime.Now }; errorForm = null; mostrarFormulario = true; }
+    private void CerrarFormulario() => mostrarFormulario = false;
+
+    private async Task Guardar()
+    {
+        if (string.IsNullOrWhiteSpace(nuevo.Titulo)) { errorForm = "El título es requerido."; return; }
+        guardando = true;
+        var result = await Api.CrearEventoAsync(nuevo);
+        guardando = false;
+        if (result is null) { errorForm = "Error al guardar."; return; }
+        mostrarFormulario = false;
+        await Cargar();
+    }
+
+    private async Task Eliminar(uint id)
+    {
+        if (await Api.EliminarEventoAsync(id))
+            await Cargar();
+    }
+}

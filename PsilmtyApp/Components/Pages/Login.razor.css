@@ -1,0 +1,83 @@
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #CC0000 0%, #8B0000 100%);
+    padding: 1rem;
+}
+
+.login-card {
+    background: white;
+    border-radius: 16px;
+    padding: 2.5rem 2rem;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+.login-logo {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.login-logo h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #CC0000;
+    margin-bottom: 0.25rem;
+}
+
+.login-subtitle {
+    color: #757575;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+.btn-primary {
+    background-color: #CC0000;
+    border-color: #CC0000;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.btn-primary:hover {
+    background-color: #8B0000;
+    border-color: #8B0000;
+}
+
+.login-card-wide {
+    max-width: 520px;
+    max-height: 92vh;
+    overflow-y: auto;
+}
+
+.login-switch {
+    text-align: center;
+    margin-top: 1.25rem;
+    font-size: 0.88rem;
+    color: #757575;
+}
+
+.btn-link-inline {
+    background: none;
+    border: none;
+    color: #CC0000;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+}
+
+.lada-select {
+    max-width: 110px;
+    flex: 0 0 auto;
+}
+
+.login-parish-logo {
+    width: 96px;
+    height: 96px;
+    object-fit: contain;
+    margin: 0 auto 0.75rem;
+    display: block;
+}

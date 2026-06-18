@@ -1,0 +1,174 @@
+@page "/adoraciones"
+@inject ApiService Api
+@inject SessionService Session
+@inject NavigationManager Nav
+
+<div class="module-container">
+    <div class="module-header">
+        <h2>🎵 Adoraciones</h2>
+        @if (permiso?.PuedeCrear == true)
+        {
+            <button class="btn btn-primary" @onclick="AbrirFormulario">+ Nueva</button>
+        }
+    </div>
+
+    @if (cargando)
+    {
+        <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (!adoraciones.Any())
+    {
+        <div class="empty-state">
+            <span class="empty-icon">🎶</span>
+            <p>No hay adoraciones registradas.</p>
+        </div>
+    }
+    else
+    {
+        <div class="items-grid">
+            @foreach (var a in adoraciones)
+            {
+                <div class="item-card">
+                    <div class="item-card-header">
+                        <span class="badge-tipo @a.Tipo">@a.Tipo</span>
+                        <span class="badge-estado @a.Estado">@a.Estado</span>
+                    </div>
+                    <h5 class="item-title">@a.Titulo</h5>
+                    <div class="item-meta">
+                        <span>📅 @a.Fecha.ToString("dd MMM yyyy HH:mm")</span>
+                        @if (a.Duracion.HasValue)
+                        {
+                            <span>⏱️ @a.Duracion min</span>
+                        }
+                    </div>
+                    @if (a.Adoradores.Any())
+                    {
+                        <div class="adoradores-chips">
+                            @foreach (var ad in a.Adoradores.Take(3))
+                            {
+                                <span class="chip">@ad.NombreCompleto @(ad.Instrumento != null ? $"({ad.Instrumento})" : "")</span>
+                            }
+                            @if (a.Adoradores.Count > 3)
+                            {
+                                <span class="chip chip-more">+@(a.Adoradores.Count - 3)</span>
+                            }
+                        </div>
+                    }
+                    <div class="item-footer">
+                        <small class="text-muted">Por @a.NombreCreador</small>
+                        @if (permiso?.PuedeEliminar == true)
+                        {
+                            <button class="btn btn-sm btn-outline-danger"
+                                    @onclick="() => Eliminar(a.Id)">Eliminar</button>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (mostrarFormulario)
+{
+    <div class="modal-overlay" @onclick="CerrarFormulario">
+        <div class="modal-card" @onclick:stopPropagation>
+            <h4>Nueva Adoración</h4>
+
+            <div class="mb-3">
+                <label class="form-label">Título *</label>
+                <input class="form-control" @bind="nuevo.Titulo" placeholder="Ej: Servicio dominical" />
+            </div>
+            <div class="row mb-3">
+                <div class="col">
+                    <label class="form-label">Fecha *</label>
+                    <input type="datetime-local" class="form-control"
+                           value="@nuevo.Fecha.ToString("yyyy-MM-ddTHH:mm")"
+                           @onchange="e => nuevo.Fecha = DateTime.Parse(e.Value?.ToString() ?? DateTime.Now.ToString())" />
+                </div>
+                <div class="col">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-select" @bind="nuevo.Tipo">
+                        <option value="mixta">Mixta</option>
+                        <option value="alabanza">Alabanza</option>
+                        <option value="adoracion">Adoración</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Duración (minutos)</label>
+                <input type="number" class="form-control" @bind="nuevo.Duracion" placeholder="60" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Notas</label>
+                <textarea class="form-control" @bind="nuevo.Notas" rows="2"></textarea>
+            </div>
+
+            @if (errorForm != null)
+            {
+                <div class="alert alert-danger py-2">@errorForm</div>
+            }
+
+            <div class="d-flex gap-2 justify-content-end">
+                <button class="btn btn-secondary" @onclick="CerrarFormulario">Cancelar</button>
+                <button class="btn btn-primary" @onclick="Guardar" disabled="@guardando">
+                    @(guardando ? "Guardando..." : "Guardar")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<AdoracionDto> adoraciones = [];
+    private ModuloPermiso? permiso;
+    private bool cargando = true;
+    private bool mostrarFormulario;
+    private bool guardando;
+    private string? errorForm;
+    private CrearAdoracionRequest nuevo = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+        permiso = Session.ObtenerPermiso("adoraciones");
+        if (permiso?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        adoraciones = await Api.GetAdoracionesAsync();
+        cargando = false;
+    }
+
+    private void AbrirFormulario()
+    {
+        nuevo = new CrearAdoracionRequest { Fecha = DateTime.Now };
+        errorForm = null;
+        mostrarFormulario = true;
+    }
+
+    private void CerrarFormulario() => mostrarFormulario = false;
+
+    private async Task Guardar()
+    {
+        if (string.IsNullOrWhiteSpace(nuevo.Titulo))
+        {
+            errorForm = "El título es requerido.";
+            return;
+        }
+        guardando = true;
+        var result = await Api.CrearAdoracionAsync(nuevo);
+        guardando = false;
+        if (result is null) { errorForm = "Error al guardar. Intenta de nuevo."; return; }
+        mostrarFormulario = false;
+        await Cargar();
+    }
+
+    private async Task Eliminar(uint id)
+    {
+        if (await Api.EliminarAdoracionAsync(id))
+            await Cargar();
+    }
+}

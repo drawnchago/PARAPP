@@ -1,0 +1,193 @@
+@page "/calendario"
+@inject ApiService Api
+@inject SessionService Session
+@inject NavigationManager Nav
+
+<div class="module-container">
+    <div class="module-header">
+        <h2>📅 Calendario</h2>
+        @if (permiso?.PuedeCrear == true)
+        {
+            <button class="btn btn-primary" @onclick="AbrirFormulario">+ Evento</button>
+        }
+    </div>
+
+    <!-- Filtro por tipo -->
+    <div class="cal-filtros mb-3">
+        <button class="cal-filtro @(filtroTipo == "" ? "active" : "")" @onclick='() => Filtrar("")'>Todos</button>
+        <button class="cal-filtro @(filtroTipo == "mass" ? "active" : "")" @onclick='() => Filtrar("mass")'>⛪ Misas</button>
+        <button class="cal-filtro @(filtroTipo == "event" ? "active" : "")" @onclick='() => Filtrar("event")'>🎉 Eventos</button>
+        <button class="cal-filtro @(filtroTipo == "retreat" ? "active" : "")" @onclick='() => Filtrar("retreat")'>🏔️ Retiros</button>
+        <button class="cal-filtro @(filtroTipo == "catechesis" ? "active" : "")" @onclick='() => Filtrar("catechesis")'>📖 Catequesis</button>
+        <button class="cal-filtro @(filtroTipo == "meeting" ? "active" : "")" @onclick='() => Filtrar("meeting")'>👥 Reuniones</button>
+    </div>
+
+    @if (cargando)
+    {
+        <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (!entradas.Any())
+    {
+        <div class="empty-state"><span class="empty-icon">🗓️</span><p>No hay eventos en el calendario.</p></div>
+    }
+    else
+    {
+        <div class="cal-timeline">
+            @foreach (var grupo in entradas.GroupBy(e => FechaDia(e.StartDatetime)))
+            {
+                <div class="cal-dia-grupo">
+                    <div class="cal-dia-header">@grupo.Key</div>
+                    @foreach (var e in grupo.OrderBy(x => x.StartDatetime))
+                    {
+                        <div class="cal-entrada" style="border-left-color: @e.Color">
+                            <div class="cal-entrada-hora">
+                                @if (e.AllDay) { <span>Todo el día</span> }
+                                else { <span>@FormatHora(e.StartDatetime)</span> }
+                            </div>
+                            <div class="cal-entrada-body">
+                                <strong>@TipoIcono(e.Type) @e.Title</strong>
+                                @if (e.Location != null) { <div class="text-muted small">📍 @e.Location</div> }
+                                @if (e.Description != null) { <div class="small">@e.Description</div> }
+                            </div>
+                            @if (permiso?.PuedeEliminar == true)
+                            {
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => Eliminar(e.Id)">×</button>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (mostrarFormulario)
+{
+    <div class="modal-overlay" @onclick="CerrarFormulario">
+        <div class="modal-card" @onclick:stopPropagation>
+            <h4>Nuevo Evento de Calendario</h4>
+            <div class="mb-3">
+                <label class="form-label">Título *</label>
+                <input class="form-control" @bind="form.Title" />
+            </div>
+            <div class="row mb-3">
+                <div class="col">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-select" @bind="form.Type">
+                        <option value="mass">Misa</option>
+                        <option value="event">Evento</option>
+                        <option value="retreat">Retiro</option>
+                        <option value="catechesis">Catequesis</option>
+                        <option value="meeting">Reunión</option>
+                        <option value="other">Otro</option>
+                    </select>
+                </div>
+                <div class="col">
+                    <label class="form-label">Color</label>
+                    <input type="color" class="form-control form-control-color" @bind="form.Color" />
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col">
+                    <label class="form-label">Inicio *</label>
+                    <input type="datetime-local" class="form-control"
+                           value="@form.StartDatetime.ToString("yyyy-MM-ddTHH:mm")"
+                           @onchange="e => form.StartDatetime = DateTime.Parse(e.Value?.ToString() ?? DateTime.Now.ToString())" />
+                </div>
+                <div class="col">
+                    <label class="form-label">Fin</label>
+                    <input type="datetime-local" class="form-control"
+                           value="@form.EndDatetime.ToString("yyyy-MM-ddTHH:mm")"
+                           @onchange="e => form.EndDatetime = DateTime.Parse(e.Value?.ToString() ?? DateTime.Now.ToString())" />
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Ubicación</label>
+                <input class="form-control" @bind="form.Location" />
+            </div>
+            <div class="mb-3">
+                <label><input type="checkbox" @bind="form.AllDay" /> Todo el día</label>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Descripción</label>
+                <textarea class="form-control" @bind="form.Description" rows="2"></textarea>
+            </div>
+
+            @if (errorForm != null) { <div class="alert alert-danger py-2">@errorForm</div> }
+
+            <div class="d-flex gap-2 justify-content-end">
+                <button class="btn btn-secondary" @onclick="CerrarFormulario">Cancelar</button>
+                <button class="btn btn-primary" @onclick="Guardar" disabled="@guardando">
+                    @(guardando ? "Guardando..." : "Guardar")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<CalendarioDto> entradas = [];
+    private ModuloPermiso? permiso;
+    private bool cargando = true, mostrarFormulario, guardando;
+    private string? errorForm;
+    private string filtroTipo = "";
+    private CalendarioForm form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+        permiso = Session.ObtenerPermiso("calendar");
+        if (permiso?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        entradas = await Api.GetCalendarioAsync(filtroTipo);
+        cargando = false;
+    }
+
+    private async Task Filtrar(string tipo)
+    {
+        filtroTipo = tipo;
+        await Cargar();
+    }
+
+    private void AbrirFormulario()
+    {
+        form = new CalendarioForm { StartDatetime = DateTime.Now, EndDatetime = DateTime.Now.AddHours(1) };
+        errorForm = null;
+        mostrarFormulario = true;
+    }
+    private void CerrarFormulario() => mostrarFormulario = false;
+
+    private async Task Guardar()
+    {
+        if (string.IsNullOrWhiteSpace(form.Title)) { errorForm = "El título es requerido."; return; }
+        guardando = true;
+        var r = await Api.CrearCalendarioAsync(new
+        {
+            title = form.Title, description = form.Description, color = form.Color,
+            startDatetime = form.StartDatetime.ToString("yyyy-MM-dd HH:mm:ss"),
+            endDatetime = form.EndDatetime.ToString("yyyy-MM-dd HH:mm:ss"),
+            allDay = form.AllDay, type = form.Type, location = form.Location
+        });
+        guardando = false;
+        if (r is null) { errorForm = "Error al guardar."; return; }
+        mostrarFormulario = false;
+        await Cargar();
+    }
+
+    private async Task Eliminar(uint id)
+    {
+        if (await Api.EliminarCalendarioAsync(id)) await Cargar();
+    }
+
+    private static string FechaDia(string dt) =>
+        DateTime.TryParse(dt, out var d) ? d.ToString("dddd, dd MMMM yyyy") : dt;
+    private static string FormatHora(string dt) =>
+        DateTime.TryParse(dt, out var d) ? d.ToString("HH:mm") : "";
+    private static string TipoIcono(string t) => t switch
+    { "mass" => "⛪", "event" => "🎉", "retreat" => "🏔️", "catechesis" => "📖", "meeting" => "👥", _ => "📌" };
+}

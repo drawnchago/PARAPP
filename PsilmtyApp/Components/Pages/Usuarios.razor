@@ -1,0 +1,243 @@
+@page "/usuarios"
+@inject ApiService Api
+@inject SessionService Session
+@inject NavigationManager Nav
+
+<div class="module-container">
+    <div class="module-header">
+        <h2>👥 Usuarios</h2>
+        @if (permiso?.PuedeCrear == true)
+        {
+            <button class="btn btn-primary" @onclick="AbrirFormulario">+ Nuevo</button>
+        }
+    </div>
+
+    <!-- Filtros -->
+    <div class="filtros-row mb-3">
+        <input class="form-control" placeholder="Buscar por nombre o correo..."
+               value="@filtroQ"
+               @oninput="OnFiltroQChange" />
+        @if (Session.Session?.Usuario.IsSuperAdmin == true)
+        {
+            <select class="form-select" @bind="filtroParroquia" @bind:after="Filtrar">
+                <option value="">Todas las parroquias</option>
+                @foreach (var p in parroquias)
+                {
+                    <option value="@p.Id">@p.Nombre</option>
+                }
+            </select>
+        }
+        <select class="form-select" @bind="filtroGrupo" @bind:after="Filtrar">
+            <option value="">Todos los grupos</option>
+            @foreach (var g in grupos)
+            {
+                <option value="@g.Id">@g.Name</option>
+            }
+        </select>
+    </div>
+
+    @if (cargando)
+    {
+        <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (!usuarios.Any())
+    {
+        <div class="empty-state"><span class="empty-icon">👤</span><p>No se encontraron usuarios.</p></div>
+    }
+    else
+    {
+        <div class="usuarios-list">
+            @foreach (var u in usuarios)
+            {
+                <div class="usuario-row">
+                    <div class="usuario-avatar" style="background: var(--color-primario)">
+                        @u.Nombre[0]@u.Apellido[0]
+                    </div>
+                    <div class="usuario-info flex-1">
+                        <strong>@u.Nombre @u.Apellido @u.Apellido2</strong>
+                        <div class="usuario-meta">
+                            <span class="chip">✉️ @u.Correo</span>
+                            @if (u.Telefono != null) { <span class="chip">📱 @u.Telefono</span> }
+                            @if (u.ParishName != null) { <span class="chip">⛪ @u.ParishName</span> }
+                            @foreach (var rol in u.Roles)
+                            {
+                                <span class="chip chip-role">@rol</span>
+                            }
+                            @if (!u.Activo) { <span class="chip chip-warning">Inactivo</span> }
+                        </div>
+                        @if (u.Grupos?.Any() == true)
+                        {
+                            <div class="grupos-chips">
+                                @foreach (var g in u.Grupos)
+                                {
+                                    <span class="chip chip-group">@g.Name (@g.RoleInGroup)</span>
+                                }
+                            </div>
+                        }
+                    </div>
+                    <div class="usuario-actions">
+                        @if (permiso?.PuedeEditar == true)
+                        {
+                            <button class="btn btn-sm btn-outline-primary" @onclick="() => AbrirEditar(u)">✏️</button>
+                        }
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => VerPermisos(u.Id)">🔑</button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- Modal Crear/Editar -->
+@if (mostrarFormulario)
+{
+    <div class="modal-overlay" @onclick="CerrarFormulario">
+        <div class="modal-card" @onclick:stopPropagation>
+            <h4>@(editando != null ? "Editar Usuario" : "Nuevo Usuario")</h4>
+
+            <div class="row mb-3">
+                <div class="col"><label class="form-label">Nombre *</label>
+                    <input class="form-control" @bind="form.FirstName" /></div>
+                <div class="col"><label class="form-label">Apellido *</label>
+                    <input class="form-control" @bind="form.LastName" /></div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Segundo apellido</label>
+                <input class="form-control" @bind="form.SecondLastName" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Correo *</label>
+                <input type="email" class="form-control" @bind="form.Email" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">@(editando != null ? "Nueva contraseña (dejar vacío para no cambiar)" : "Contraseña *")</label>
+                <input type="password" class="form-control" @bind="form.Password" />
+            </div>
+            <div class="row mb-3">
+                <div class="col"><label class="form-label">Teléfono</label>
+                    <input class="form-control" @bind="form.MobilePhone" /></div>
+                <div class="col"><label class="form-label">Género</label>
+                    <select class="form-select" @bind="form.Gender">
+                        <option value="unspecified">No especificado</option>
+                        <option value="male">Masculino</option>
+                        <option value="female">Femenino</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Rol inicial</label>
+                <select class="form-select" @bind="form.RoleName">
+                    @foreach (var r in roles)
+                    {
+                        <option value="@r.Name">@r.Name</option>
+                    }
+                </select>
+            </div>
+
+            @if (errorForm != null) { <div class="alert alert-danger py-2">@errorForm</div> }
+
+            <div class="d-flex gap-2 justify-content-end">
+                <button class="btn btn-secondary" @onclick="CerrarFormulario">Cancelar</button>
+                <button class="btn btn-primary" @onclick="Guardar" disabled="@guardando">
+                    @(guardando ? "Guardando..." : "Guardar")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<UsuarioDto> usuarios = [];
+    private List<GrupoDto> grupos = [];
+    private List<ParroquiaDto> parroquias = [];
+    private List<RolDto> roles = [];
+    private ModuloPermiso? permiso;
+    private bool cargando = true;
+    private bool mostrarFormulario;
+    private bool guardando;
+    private string? errorForm;
+    private string filtroQ = "";
+    private string filtroParroquia = "";
+    private string filtroGrupo = "";
+    private UsuarioDto? editando;
+    private CrearUsuarioForm form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+        permiso = Session.ObtenerPermiso("users");
+        if (permiso?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
+        await Task.WhenAll(Cargar(), CargarFiltros());
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        usuarios = await Api.GetUsuariosAsync(filtroQ, filtroParroquia, filtroGrupo);
+        cargando = false;
+    }
+
+    private async Task CargarFiltros()
+    {
+        grupos = await Api.GetGruposAsync();
+        roles  = await Api.GetRolesAsync();
+    }
+
+    private async Task OnFiltroQChange(ChangeEventArgs e)
+    {
+        filtroQ = e.Value?.ToString() ?? "";
+        await Filtrar();
+    }
+
+    private async Task Filtrar() => await Cargar();
+
+    private void AbrirFormulario()
+    {
+        editando = null;
+        form = new CrearUsuarioForm { RoleName = "parishioner" };
+        errorForm = null;
+        mostrarFormulario = true;
+    }
+
+    private void AbrirEditar(UsuarioDto u)
+    {
+        editando = u;
+        form = new CrearUsuarioForm
+        {
+            FirstName      = u.Nombre,
+            LastName       = u.Apellido,
+            SecondLastName = u.Apellido2,
+            Email          = u.Correo,
+            MobilePhone    = u.Telefono ?? "",
+            RoleName       = u.Roles.FirstOrDefault() ?? "parishioner"
+        };
+        errorForm = null;
+        mostrarFormulario = true;
+    }
+
+    private void CerrarFormulario() => mostrarFormulario = false;
+
+    private async Task Guardar()
+    {
+        if (string.IsNullOrWhiteSpace(form.FirstName) || string.IsNullOrWhiteSpace(form.LastName))
+        { errorForm = "Nombre y apellido son requeridos."; return; }
+        if (string.IsNullOrWhiteSpace(form.Email))
+        { errorForm = "El correo es requerido."; return; }
+        if (editando is null && string.IsNullOrWhiteSpace(form.Password))
+        { errorForm = "La contraseña es requerida."; return; }
+
+        guardando = true;
+        bool ok;
+        if (editando is null)
+            ok = await Api.CrearUsuarioAsync(form) != null;
+        else
+            ok = await Api.ActualizarUsuarioAsync(editando.Id, form) != null;
+
+        guardando = false;
+        if (!ok) { errorForm = "Error al guardar. Verifica los datos."; return; }
+        mostrarFormulario = false;
+        await Cargar();
+    }
+
+    private void VerPermisos(uint id) => Nav.NavigateTo($"/permisos?userId={id}");
+}

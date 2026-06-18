@@ -1,0 +1,38 @@
+@inherits LayoutComponentBase
+@inject SessionService Session
+@inject NavigationManager Nav
+@implements IDisposable
+
+@if (Session.IsAuthenticated)
+{
+    <div class="page">
+        <div class="sidebar">
+            <NavMenu />
+        </div>
+
+        <main>
+            <article class="content px-4">
+                @Body
+            </article>
+        </main>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        Session.OnChange += OnSessionChanged;
+
+        if (!Session.IsAuthenticated)
+            Nav.NavigateTo("/login", replace: true);
+    }
+
+    private void OnSessionChanged()
+    {
+        InvokeAsync(StateHasChanged);
+        if (!Session.IsAuthenticated)
+            Nav.NavigateTo("/login", replace: true);
+    }
+
+    public void Dispose() => Session.OnChange -= OnSessionChanged;
+}

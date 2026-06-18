@@ -1,0 +1,319 @@
+@page "/permisos"
+@inject ApiService Api
+@inject SessionService Session
+@inject NavigationManager Nav
+
+<div class="module-container">
+    <div class="module-header">
+        <h2>🔑 Permisos</h2>
+    </div>
+
+    <!-- Tabs -->
+    <div class="perm-tabs mb-3">
+        <button class="perm-tab @(tabActiva == "usuario" ? "active" : "")" @onclick='() => tabActiva = "usuario"'>
+            Por Usuario
+        </button>
+        <button class="perm-tab @(tabActiva == "modulo" ? "active" : "")" @onclick='() => tabActiva = "modulo"'>
+            Por Módulo
+        </button>
+    </div>
+
+    <!-- ══ TAB: Por Usuario ══ -->
+    @if (tabActiva == "usuario")
+    {
+        <div class="perm-section">
+            <div class="perm-search-box">
+                <input class="form-control" placeholder="Buscar usuario por nombre o correo..."
+                       value="@busquedaUsuario"
+                       @oninput="BuscarUsuarios" />
+                @if (resultadosBusqueda.Any())
+                {
+                    <div class="search-dropdown">
+                        @foreach (var u in resultadosBusqueda)
+                        {
+                            <div class="search-item" @onclick="() => SeleccionarUsuario(u)">
+                                <div class="search-item-avatar">@u.Nombre[0]@u.Apellido[0]</div>
+                                <div>
+                                    <strong>@u.Nombre @u.Apellido</strong>
+                                    <small class="d-block text-muted">@u.Correo — @u.ParishName</small>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- Usuario seleccionado -->
+            @if (usuarioSeleccionado != null)
+            {
+                <div class="selected-user-card">
+                    <div class="usuario-avatar-lg" style="background: var(--color-primario)">
+                        @usuarioSeleccionado.Nombre[0]@usuarioSeleccionado.Apellido[0]
+                    </div>
+                    <div class="flex-1">
+                        <strong>@usuarioSeleccionado.Nombre @usuarioSeleccionado.Apellido</strong>
+                        <div class="text-muted small">@usuarioSeleccionado.Correo</div>
+                        <div class="mt-1">
+                            @foreach (var rol in usuarioSeleccionado.Roles)
+                            {
+                                <span class="chip chip-role">@rol</span>
+                            }
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="LimpiarUsuario">✕</button>
+                </div>
+
+                @if (cargandoModulos)
+                {
+                    <div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>
+                }
+                else
+                {
+                    <div class="modulos-permisos-grid">
+                        @foreach (var m in modulosUsuario)
+                        {
+                            <div class="modulo-perm-card @(m.CanView ? "has-access" : "")">
+                                <div class="modulo-perm-header">
+                                    <span class="modulo-perm-icon">@IconoEmoji(m.Code)</span>
+                                    <span class="modulo-perm-name">@m.Name</span>
+                                    <input type="checkbox" class="form-check-input ms-auto"
+                                           checked="@m.CanView"
+                                           @onchange="e => ToggleModuloAcceso(m, (bool)e.Value!)" />
+                                </div>
+                                @if (m.CanView)
+                                {
+                                    <div class="modulo-perm-detalle">
+                                        <label><input type="checkbox" checked="@m.CanCreate" @onchange="e => m.CanCreate = (bool)e.Value!" /> Crear</label>
+                                        <label><input type="checkbox" checked="@m.CanEdit"   @onchange="e => m.CanEdit   = (bool)e.Value!" /> Editar</label>
+                                        <label><input type="checkbox" checked="@m.CanDelete" @onchange="e => m.CanDelete = (bool)e.Value!" /> Eliminar</label>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <div class="d-flex gap-2 mt-3 justify-content-end">
+                        <button class="btn btn-primary" @onclick="GuardarPermisosUsuario" disabled="@guardando">
+                            @(guardando ? "Guardando..." : "Guardar permisos")
+                        </button>
+                    </div>
+
+                    @if (savedOk) { <div class="save-toast">✓ Permisos guardados</div> }
+                }
+            }
+            else
+            {
+                <div class="empty-state">
+                    <span class="empty-icon">🔍</span>
+                    <p>Busca y selecciona un usuario para gestionar sus permisos.</p>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- ══ TAB: Por Módulo ══ -->
+    @if (tabActiva == "modulo")
+    {
+        <div class="perm-section">
+            <label class="form-label fw-bold">Selecciona un módulo:</label>
+            <div class="modulos-selector-grid mb-3">
+                @foreach (var m in todosModulos)
+                {
+                    <button class="modulo-selector-btn @(m.Code == moduloSeleccionado?.Code ? "active" : "")"
+                            @onclick="() => SeleccionarModulo(m)">
+                        <span>@IconoEmoji(m.Code)</span>
+                        <span>@m.Name</span>
+                    </button>
+                }
+            </div>
+
+            @if (moduloSeleccionado != null)
+            {
+                <div class="modulo-selected-header">
+                    <span class="modulo-icon-lg">@IconoEmoji(moduloSeleccionado.Code)</span>
+                    <div>
+                        <h5 class="mb-0">@moduloSeleccionado.Name</h5>
+                        <small class="text-muted">Usuarios con acceso</small>
+                    </div>
+                </div>
+
+                @if (cargandoUsuariosModulo)
+                {
+                    <div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>
+                }
+                else
+                {
+                    <!-- Chips de usuarios con acceso -->
+                    @if (usuariosConAcceso.Any())
+                    {
+                        <div class="chips-container mb-3">
+                            @foreach (var u in usuariosConAcceso)
+                            {
+                                <div class="user-chip">
+                                    <span class="user-chip-avatar">@u.Nombre[0]@u.Apellido[0]</span>
+                                    <span>@u.Nombre @u.Apellido</span>
+                                    <button @onclick="() => QuitarAccesoModulo(u)" class="user-chip-remove">✕</button>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted">Ningún usuario tiene acceso a este módulo aún.</p>
+                    }
+
+                    <!-- Buscar usuarios para agregar -->
+                    <div class="perm-search-box mb-2">
+                        <input class="form-control" placeholder="Buscar usuario para agregar..."
+                               value="@busquedaAgregar"
+                               @oninput="BuscarParaAgregar" />
+                        @if (resultadosAgregar.Any())
+                        {
+                            <div class="search-dropdown">
+                                @foreach (var u in resultadosAgregar.Where(u => !usuariosConAcceso.Any(x => x.Id == u.Id)))
+                                {
+                                    <div class="search-item" @onclick="() => AgregarAccesoModulo(u)">
+                                        <div class="search-item-avatar">@u.Nombre[0]@u.Apellido[0]</div>
+                                        <div>
+                                            <strong>@u.Nombre @u.Apellido</strong>
+                                            <small class="d-block text-muted">@u.Correo</small>
+                                        </div>
+                                        <span class="ms-auto text-success">+ Agregar</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? UserId { get; set; }
+
+    private string tabActiva = "usuario";
+    private string busquedaUsuario = "";
+    private string busquedaAgregar = "";
+    private List<UsuarioDto> resultadosBusqueda = [];
+    private List<UsuarioDto> resultadosAgregar  = [];
+    private UsuarioDto? usuarioSeleccionado;
+    private List<ModuloPermisoDetalle> modulosUsuario = [];
+    private List<ModuloInfo> todosModulos = [];
+    private ModuloInfo? moduloSeleccionado;
+    private List<UsuarioDto> usuariosConAcceso = [];
+    private bool cargandoModulos;
+    private bool cargandoUsuariosModulo;
+    private bool guardando;
+    private bool savedOk;
+    private System.Threading.CancellationTokenSource? cts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+        todosModulos = await Api.GetTodosModulosAsync();
+
+        if (!string.IsNullOrEmpty(UserId) && uint.TryParse(UserId, out var uid))
+        {
+            var u = await Api.GetUsuarioPorIdAsync(uid);
+            if (u != null) await SeleccionarUsuario(u);
+        }
+    }
+
+    private async Task BuscarUsuarios(ChangeEventArgs e)
+    {
+        var q = e.Value?.ToString() ?? "";
+        if (q.Length < 2) { resultadosBusqueda = []; return; }
+        resultadosBusqueda = await Api.BuscarUsuariosAsync(q);
+    }
+
+    private async Task BuscarParaAgregar(ChangeEventArgs e)
+    {
+        var q = e.Value?.ToString() ?? "";
+        if (q.Length < 2) { resultadosAgregar = []; return; }
+        resultadosAgregar = await Api.BuscarUsuariosAsync(q);
+    }
+
+    private async Task SeleccionarUsuario(UsuarioDto u)
+    {
+        usuarioSeleccionado = u;
+        busquedaUsuario     = $"{u.Nombre} {u.Apellido}";
+        resultadosBusqueda  = [];
+        cargandoModulos     = true;
+        StateHasChanged();
+        modulosUsuario = await Api.GetModulosByUsuarioAsync(u.Id);
+        cargandoModulos = false;
+    }
+
+    private void LimpiarUsuario()
+    {
+        usuarioSeleccionado = null;
+        busquedaUsuario     = "";
+        modulosUsuario      = [];
+    }
+
+    private void ToggleModuloAcceso(ModuloPermisoDetalle m, bool value)
+    {
+        m.CanView = value;
+        if (!value) { m.CanCreate = false; m.CanEdit = false; m.CanDelete = false; }
+    }
+
+    private async Task GuardarPermisosUsuario()
+    {
+        if (usuarioSeleccionado is null) return;
+        guardando = true;
+        var moduleIds = modulosUsuario.Where(m => m.CanView).Select(m => m.ModuleId).ToList();
+        var perms = modulosUsuario
+            .Where(m => m.CanView)
+            .ToDictionary(m => m.Code, m => new { m.CanView, m.CanCreate, m.CanEdit, m.CanDelete });
+
+        await Api.AsignarModulosAUsuarioAsync(usuarioSeleccionado.Id, moduleIds, new()
+        {
+            View   = modulosUsuario.Any(m => m.CanView),
+            Create = modulosUsuario.Any(m => m.CanCreate),
+            Edit   = modulosUsuario.Any(m => m.CanEdit),
+            Delete = modulosUsuario.Any(m => m.CanDelete),
+        });
+        guardando = false;
+        savedOk   = true;
+        StateHasChanged();
+        await Task.Delay(2500);
+        savedOk = false;
+        StateHasChanged();
+    }
+
+    private async Task SeleccionarModulo(ModuloInfo m)
+    {
+        moduloSeleccionado       = m;
+        cargandoUsuariosModulo   = true;
+        StateHasChanged();
+        usuariosConAcceso = await Api.GetUsuariosByModuloAsync(m.ModuleId);
+        cargandoUsuariosModulo = false;
+    }
+
+    private async Task AgregarAccesoModulo(UsuarioDto u)
+    {
+        if (moduloSeleccionado is null) return;
+        await Api.AsignarModulosAUsuarioAsync(u.Id, [moduloSeleccionado.ModuleId], new() { View = true });
+        usuariosConAcceso.Add(u);
+        resultadosAgregar = [];
+        busquedaAgregar   = "";
+    }
+
+    private async Task QuitarAccesoModulo(UsuarioDto u)
+    {
+        if (moduloSeleccionado is null) return;
+        await Api.AsignarModulosAUsuarioAsync(u.Id, [], new());
+        usuariosConAcceso.RemoveAll(x => x.Id == u.Id);
+    }
+
+    private static string IconoEmoji(string code) => code switch
+    {
+        "adoration"     => "🎵", "groups"     => "🎸", "calendar"  => "📅",
+        "settings"      => "⚙️", "home"       => "🏠", "news"      => "📰",
+        "notifications" => "🔔", "donations"  => "💝", "users"     => "👥",
+        "sacraments"    => "⛪", "gallery"    => "🖼️", "intentions"=> "🕯️",
+        "requests"      => "📋", _            => "📦"
+    };
+}

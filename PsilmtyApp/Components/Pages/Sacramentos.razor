@@ -1,0 +1,195 @@
+@page "/sacramentos"
+@inject ApiService Api
+@inject SessionService Session
+@inject NavigationManager Nav
+
+<div class="module-container">
+    <div class="module-header">
+        <h2>⛪ Sacramentos</h2>
+        @if (permiso?.PuedeCrear == true)
+        {
+            <button class="btn btn-primary" @onclick="AbrirFormulario">+ Registrar</button>
+        }
+    </div>
+
+    @if (cargando)
+    {
+        <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (!sacramentos.Any())
+    {
+        <div class="empty-state"><span class="empty-icon">✝️</span><p>No hay sacramentos registrados.</p></div>
+    }
+    else
+    {
+        <div class="items-grid">
+            @foreach (var s in sacramentos)
+            {
+                <div class="item-card">
+                    <div class="item-card-header">
+                        <span class="badge-sacramento">@SacramentoIcono(s.TypeName) @s.TypeName</span>
+                    </div>
+                    <h5 class="item-title">@s.UserName</h5>
+                    <div class="item-meta">
+                        <span>📅 @FormatFecha(s.Date)</span>
+                        @if (s.Minister != null) { <span>👤 @s.Minister</span> }
+                    </div>
+                    @if (s.Godfather != null || s.Godmother != null)
+                    {
+                        <div class="item-meta">
+                            @if (s.Godfather != null) { <span>🧑 Padrino: @s.Godfather</span> }
+                            @if (s.Godmother != null) { <span>👩 Madrina: @s.Godmother</span> }
+                        </div>
+                    }
+                    @if (s.RecordNumber != null)
+                    {
+                        <div class="item-meta"><span>📋 Acta: @s.RecordNumber</span></div>
+                    }
+                    @if (permiso?.PuedeEliminar == true)
+                    {
+                        <div class="item-footer">
+                            <span></span>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => Eliminar(s.Id)">Eliminar</button>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (mostrarFormulario)
+{
+    <div class="modal-overlay" @onclick="CerrarFormulario">
+        <div class="modal-card" @onclick:stopPropagation>
+            <h4>Registrar Sacramento</h4>
+            <div class="mb-3">
+                <label class="form-label">Buscar feligrés *</label>
+                <input class="form-control" placeholder="Nombre o correo..."
+                       value="@busquedaUsuario" @oninput="BuscarUsuarios" />
+                @if (resultados.Any())
+                {
+                    <div class="search-dropdown">
+                        @foreach (var u in resultados)
+                        {
+                            <div class="search-item" @onclick="() => SeleccionarUsuario(u)">
+                                <div class="search-item-avatar">@u.Nombre[0]@u.Apellido[0]</div>
+                                <div><strong>@u.Nombre @u.Apellido</strong><small class="d-block text-muted">@u.Correo</small></div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+            <div class="row mb-3">
+                <div class="col">
+                    <label class="form-label">Tipo *</label>
+                    <select class="form-select" @bind="form.TypeId">
+                        <option value="0">Selecciona...</option>
+                        @foreach (var t in tipos)
+                        {
+                            <option value="@t.Id">@t.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col">
+                    <label class="form-label">Fecha *</label>
+                    <input type="date" class="form-control"
+                           value="@form.Date.ToString("yyyy-MM-dd")"
+                           @onchange="e => form.Date = DateTime.Parse(e.Value?.ToString() ?? DateTime.Now.ToString())" />
+                </div>
+            </div>
+            <div class="mb-3"><label class="form-label">Ministro</label><input class="form-control" @bind="form.Minister" /></div>
+            <div class="row mb-3">
+                <div class="col"><label class="form-label">Padrino</label><input class="form-control" @bind="form.Godfather" /></div>
+                <div class="col"><label class="form-label">Madrina</label><input class="form-control" @bind="form.Godmother" /></div>
+            </div>
+            <div class="mb-3"><label class="form-label">N° de acta</label><input class="form-control" @bind="form.RecordNumber" /></div>
+
+            @if (errorForm != null) { <div class="alert alert-danger py-2">@errorForm</div> }
+
+            <div class="d-flex gap-2 justify-content-end">
+                <button class="btn btn-secondary" @onclick="CerrarFormulario">Cancelar</button>
+                <button class="btn btn-primary" @onclick="Guardar" disabled="@guardando">
+                    @(guardando ? "Guardando..." : "Guardar")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<SacramentoDto> sacramentos = [];
+    private List<CategoriaDto> tipos = [];
+    private List<UsuarioDto> resultados = [];
+    private ModuloPermiso? permiso;
+    private bool cargando = true, mostrarFormulario, guardando;
+    private string? errorForm;
+    private string busquedaUsuario = "";
+    private SacramentoForm form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+        permiso = Session.ObtenerPermiso("sacraments");
+        if (permiso?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
+        tipos = await Api.GetSacramentoTiposAsync();
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        sacramentos = await Api.GetSacramentosAsync();
+        cargando = false;
+    }
+
+    private void AbrirFormulario() { form = new(); busquedaUsuario = ""; errorForm = null; mostrarFormulario = true; }
+    private void CerrarFormulario() => mostrarFormulario = false;
+
+    private async Task BuscarUsuarios(ChangeEventArgs e)
+    {
+        var q = e.Value?.ToString() ?? "";
+        busquedaUsuario = q;
+        resultados = q.Length >= 2 ? await Api.BuscarUsuariosAsync(q) : [];
+    }
+
+    private void SeleccionarUsuario(UsuarioDto u)
+    {
+        form.UserId = u.Id;
+        busquedaUsuario = $"{u.Nombre} {u.Apellido}";
+        resultados = [];
+    }
+
+    private async Task Guardar()
+    {
+        if (form.UserId == 0) { errorForm = "Selecciona un feligrés."; return; }
+        if (form.TypeId == 0) { errorForm = "Selecciona el tipo de sacramento."; return; }
+        guardando = true;
+        var r = await Api.CrearSacramentoAsync(new
+        {
+            userId = form.UserId, typeId = form.TypeId,
+            date = form.Date.ToString("yyyy-MM-dd"),
+            minister = form.Minister, godfather = form.Godfather,
+            godmother = form.Godmother, recordNumber = form.RecordNumber
+        });
+        guardando = false;
+        if (r is null) { errorForm = "Error al guardar."; return; }
+        mostrarFormulario = false;
+        await Cargar();
+    }
+
+    private async Task Eliminar(uint id)
+    {
+        if (await Api.EliminarSacramentoAsync(id)) await Cargar();
+    }
+
+    private static string FormatFecha(string fecha) =>
+        DateTime.TryParse(fecha, out var d) ? d.ToString("dd MMM yyyy") : fecha;
+
+    private static string SacramentoIcono(string? tipo) => tipo switch
+    {
+        "Baptism" => "💧", "First Communion" => "🍞", "Confirmation" => "🕊️",
+        "Marriage" => "💍", "Anointing of the Sick" => "🙏", "Holy Orders" => "✝️",
+        _ => "⛪"
+    };
+}

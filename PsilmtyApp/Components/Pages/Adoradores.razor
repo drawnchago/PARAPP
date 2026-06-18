@@ -1,0 +1,159 @@
+@page "/adoradores"
+@inject ApiService Api
+@inject SessionService Session
+@inject NavigationManager Nav
+
+<div class="module-container">
+    <div class="module-header">
+        <h2>🎸 Adoradores</h2>
+        @if (permiso?.PuedeCrear == true)
+        {
+            <button class="btn btn-primary" @onclick="AbrirFormulario">+ Nuevo</button>
+        }
+    </div>
+
+    <div class="mb-3">
+        <input class="form-control" placeholder="Buscar por nombre o instrumento..."
+               @bind="busqueda" @bind:event="oninput" />
+    </div>
+
+    @if (cargando)
+    {
+        <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+    }
+    else
+    {
+        var filtrados = adoradores.Where(a =>
+            string.IsNullOrEmpty(busqueda) ||
+            a.NombreCompleto.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ||
+            (a.Instrumento?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)).ToList();
+
+        @if (!filtrados.Any())
+        {
+            <div class="empty-state">
+                <span class="empty-icon">🎤</span>
+                <p>No se encontraron adoradores.</p>
+            </div>
+        }
+        else
+        {
+            <div class="adoradores-list">
+                @foreach (var a in filtrados)
+                {
+                    <div class="adorador-row @(!a.Activo ? "inactivo" : "")">
+                        <div class="adorador-avatar">
+                            @a.Nombre[0]@a.Apellido[0]
+                        </div>
+                        <div class="adorador-info">
+                            <strong>@a.NombreCompleto</strong>
+                            <div class="adorador-meta">
+                                @if (a.Instrumento != null) { <span class="chip">🎵 @a.Instrumento</span> }
+                                @if (a.Correo != null)      { <span class="chip">✉️ @a.Correo</span> }
+                                @if (a.Telefono != null)    { <span class="chip">📱 @a.Telefono</span> }
+                                @if (!a.Activo)             { <span class="chip chip-warning">Inactivo</span> }
+                            </div>
+                        </div>
+                        @if (permiso?.PuedeEliminar == true)
+                        {
+                            <button class="btn btn-sm btn-outline-danger"
+                                    @onclick="() => Eliminar(a.Id)">×</button>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@if (mostrarFormulario)
+{
+    <div class="modal-overlay" @onclick="CerrarFormulario">
+        <div class="modal-card" @onclick:stopPropagation>
+            <h4>Nuevo Adorador</h4>
+            <div class="row mb-3">
+                <div class="col">
+                    <label class="form-label">Nombre *</label>
+                    <input class="form-control" @bind="nuevo.Nombre" />
+                </div>
+                <div class="col">
+                    <label class="form-label">Apellido *</label>
+                    <input class="form-control" @bind="nuevo.Apellido" />
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Instrumento</label>
+                <input class="form-control" @bind="nuevo.Instrumento" placeholder="Guitarra, Piano, Voz…" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Correo</label>
+                <input type="email" class="form-control" @bind="nuevo.Correo" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Teléfono</label>
+                <input type="tel" class="form-control" @bind="nuevo.Telefono" />
+            </div>
+
+            @if (errorForm != null)
+            {
+                <div class="alert alert-danger py-2">@errorForm</div>
+            }
+
+            <div class="d-flex gap-2 justify-content-end">
+                <button class="btn btn-secondary" @onclick="CerrarFormulario">Cancelar</button>
+                <button class="btn btn-primary" @onclick="Guardar" disabled="@guardando">
+                    @(guardando ? "Guardando..." : "Guardar")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<AdoradorDto> adoradores = [];
+    private ModuloPermiso? permiso;
+    private bool cargando = true;
+    private bool mostrarFormulario;
+    private bool guardando;
+    private string? errorForm;
+    private string busqueda = "";
+    private CrearAdoradorRequest nuevo = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+        permiso = Session.ObtenerPermiso("adoradores");
+        if (permiso?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        adoradores = await Api.GetAdoradoresAsync();
+        cargando = false;
+    }
+
+    private void AbrirFormulario() { nuevo = new(); errorForm = null; mostrarFormulario = true; }
+    private void CerrarFormulario() => mostrarFormulario = false;
+
+    private async Task Guardar()
+    {
+        if (string.IsNullOrWhiteSpace(nuevo.Nombre) || string.IsNullOrWhiteSpace(nuevo.Apellido))
+        {
+            errorForm = "Nombre y apellido son requeridos.";
+            return;
+        }
+        guardando = true;
+        var result = await Api.CrearAdoradorAsync(nuevo);
+        guardando = false;
+        if (result is null) { errorForm = "Error al guardar."; return; }
+        mostrarFormulario = false;
+        await Cargar();
+    }
+
+    private async Task Eliminar(uint id)
+    {
+        if (await Api.EliminarAdoradorAsync(id))
+            await Cargar();
+    }
+}

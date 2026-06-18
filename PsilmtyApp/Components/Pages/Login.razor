@@ -1,0 +1,318 @@
+@page "/login"
+@layout LoginLayout
+@inject ApiService Api
+@inject SessionService Session
+@inject SessionStore Store
+@inject NavigationManager Nav
+
+<div class="login-container" style="background: linear-gradient(135deg, @colorPrincipal 0%, @colorSecundario 100%)">
+    <div class="login-card @(modoRegistro ? "login-card-wide" : "")">
+        <div class="login-logo">
+            @if (parroquiaSel != null)
+            {
+                <img src="@LogoParroquia(parroquiaSel)" class="login-parish-logo" alt="logo" />
+                <h1 style="color:@colorPrincipal">@parroquiaSel.Name</h1>
+                <p class="login-subtitle">@(modoRegistro ? "Crear cuenta de feligrés" : (string.IsNullOrEmpty(parroquiaSel.City) ? "Bienvenido" : parroquiaSel.City))</p>
+            }
+            else
+            {
+                <h1 style="color:@colorPrincipal">PsilmtyApp</h1>
+                <p class="login-subtitle">@(modoRegistro ? "Crear cuenta de feligrés" : "Selecciona tu parroquia")</p>
+            }
+        </div>
+
+        @if (!modoRegistro)
+        {
+            @* ══════════ INICIAR SESIÓN ══════════ *@
+            <div class="mb-3">
+                <label class="form-label">Parroquia <small class="text-muted">(opcional para administradores)</small></label>
+                <select class="form-select" value="@parroquiaLogin" @onchange="OnParroquiaLoginChange">
+                    <option value="0">Selecciona tu parroquia...</option>
+                    @foreach (var p in parroquias)
+                    {
+                        <option value="@p.Id">@p.Display</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Correo</label>
+                <input class="form-control @(error != null ? "is-invalid" : "")"
+                       @bind="request.UsuarioOCorreo"
+                       placeholder="correo@ejemplo.com" autocomplete="username" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Contraseña</label>
+                <div class="input-group">
+                    <input class="form-control @(error != null ? "is-invalid" : "")"
+                           type="@(mostrarPass ? "text" : "password")"
+                           @bind="request.Password" placeholder="••••••••"
+                           autocomplete="current-password" />
+                    <button class="btn btn-outline-secondary" type="button"
+                            @onclick="() => mostrarPass = !mostrarPass">
+                        @(mostrarPass ? "🙈" : "👁️")
+                    </button>
+                </div>
+                @if (error != null) { <div class="invalid-feedback d-block">@error</div> }
+            </div>
+
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="recordar" @bind="recordar" />
+                <label class="form-check-label" for="recordar">Recordar mi sesión</label>
+            </div>
+
+            <button class="btn btn-primary w-100 py-2" @onclick="HandleLogin" disabled="@cargando">
+                @if (cargando)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span><span>Ingresando...</span>
+                }
+                else { <span>Ingresar</span> }
+            </button>
+
+            <div class="login-switch">
+                ¿No tienes cuenta?
+                <button class="btn-link-inline" @onclick="AbrirRegistro">Regístrate como feligrés</button>
+            </div>
+        }
+        else
+        {
+            @* ══════════ REGISTRO DE FELIGRÉS ══════════ *@
+            <div class="row">
+                <div class="col mb-2">
+                    <label class="form-label">Nombre *</label>
+                    <input class="form-control" @bind="reg.FirstName" />
+                </div>
+                <div class="col mb-2">
+                    <label class="form-label">Segundo nombre</label>
+                    <input class="form-control" @bind="reg.SecondName" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col mb-2">
+                    <label class="form-label">Apellido paterno *</label>
+                    <input class="form-control" @bind="apellidoPaterno" />
+                </div>
+                <div class="col mb-2">
+                    <label class="form-label">Apellido materno</label>
+                    <input class="form-control" @bind="apellidoMaterno" />
+                </div>
+            </div>
+
+            <div class="mb-2">
+                <label class="form-label">Parroquia *</label>
+                <select class="form-select" @bind="reg.ParishId">
+                    <option value="0">Selecciona tu parroquia...</option>
+                    @foreach (var p in parroquias)
+                    {
+                        <option value="@p.Id">@p.Display</option>
+                    }
+                </select>
+            </div>
+
+            <div class="mb-2">
+                <label class="form-label">Correo *</label>
+                <input type="email" class="form-control" @bind="reg.Email" />
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Contraseña * <small class="text-muted">(mín. 6 caracteres)</small></label>
+                <input type="password" class="form-control" @bind="reg.Password" />
+            </div>
+
+            <div class="mb-2">
+                <label class="form-label">Teléfono celular (10 dígitos)</label>
+                <div class="input-group">
+                    <select class="form-select lada-select" @bind="ladaSel">
+                        @foreach (var c in paises)
+                        {
+                            <option value="@c.Codigo">@c.Bandera @c.Codigo</option>
+                        }
+                    </select>
+                    <input class="form-control" @bind="telefono" maxlength="10"
+                           inputmode="numeric" placeholder="1234567890" />
+                </div>
+            </div>
+
+            <div class="mb-2">
+                <label class="form-label">Dirección</label>
+                <input class="form-control" @bind="reg.Address" />
+            </div>
+            <div class="row">
+                <div class="col mb-2">
+                    <label class="form-label">Colonia</label>
+                    <input class="form-control" @bind="reg.Neighborhood" />
+                </div>
+                <div class="col mb-2">
+                    <label class="form-label">Código postal</label>
+                    <input class="form-control" @bind="reg.ZipCode" maxlength="5" inputmode="numeric" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col mb-2">
+                    <label class="form-label">Ciudad</label>
+                    <input class="form-control" @bind="reg.City" />
+                </div>
+                <div class="col mb-2">
+                    <label class="form-label">Estado</label>
+                    <input class="form-control" @bind="reg.State" />
+                </div>
+            </div>
+
+            @if (error != null) { <div class="alert alert-danger py-2">@error</div> }
+
+            <button class="btn btn-primary w-100 py-2 mt-2" @onclick="HandleRegistro" disabled="@cargando">
+                @if (cargando)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span><span>Creando cuenta...</span>
+                }
+                else { <span>Crear cuenta</span> }
+            </button>
+
+            <div class="login-switch">
+                ¿Ya tienes cuenta?
+                <button class="btn-link-inline" @onclick="() => { modoRegistro = false; error = null; }">Inicia sesión</button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private readonly LoginRequest request = new();
+    private RegistroRequest reg = new();
+    private List<ParroquiaPublicaDto> parroquias = [];
+    private string? error;
+    private bool cargando, mostrarPass, modoRegistro;
+    private bool recordar = true;
+    private uint parroquiaLogin;
+    private ParroquiaPublicaDto? parroquiaSel;
+    private string colorPrincipal = "#CC0000";
+    private string colorSecundario = "#8B0000";
+
+    private void OnParroquiaLoginChange(ChangeEventArgs e)
+    {
+        if (uint.TryParse(e.Value?.ToString(), out var id) && id > 0)
+        {
+            parroquiaLogin = id;
+            parroquiaSel = parroquias.FirstOrDefault(p => p.Id == id);
+            if (parroquiaSel != null)
+            {
+                colorPrincipal  = parroquiaSel.PrimaryColor   ?? "#CC0000";
+                colorSecundario = parroquiaSel.SecondaryColor ?? "#8B0000";
+            }
+        }
+        else
+        {
+            parroquiaLogin = 0;
+            parroquiaSel = null;
+            colorPrincipal = "#CC0000";
+            colorSecundario = "#8B0000";
+        }
+    }
+
+    private static string LogoParroquia(ParroquiaPublicaDto p) =>
+        !string.IsNullOrEmpty(p.LogoUrl) ? p.LogoUrl! : "images/login/default.svg";
+
+    // Registro: apellidos separados + teléfono con lada
+    private string apellidoPaterno = "", apellidoMaterno = "", telefono = "", ladaSel = "+52";
+
+    private readonly List<PaisLada> paises =
+    [
+        new() { Nombre = "México",      Codigo = "+52",  Bandera = "🇲🇽" },
+        new() { Nombre = "Estados Unidos", Codigo = "+1", Bandera = "🇺🇸" },
+        new() { Nombre = "Guatemala",   Codigo = "+502", Bandera = "🇬🇹" },
+        new() { Nombre = "El Salvador", Codigo = "+503", Bandera = "🇸🇻" },
+        new() { Nombre = "Honduras",    Codigo = "+504", Bandera = "🇭🇳" },
+        new() { Nombre = "Colombia",    Codigo = "+57",  Bandera = "🇨🇴" },
+        new() { Nombre = "España",      Codigo = "+34",  Bandera = "🇪🇸" },
+        new() { Nombre = "Argentina",   Codigo = "+54",  Bandera = "🇦🇷" },
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Session.IsAuthenticated) { Nav.NavigateTo("/"); return; }
+
+        var saved = await Store.LoadAsync();
+        if (saved is not null && saved.Expiracion > DateTime.UtcNow)
+        {
+            Session.SetSession(saved);
+            Nav.NavigateTo("/");
+            return;
+        }
+
+        // Cargar parroquias para los selectores
+        parroquias = await Api.GetParroquiasPublicasAsync();
+    }
+
+    private async Task HandleLogin()
+    {
+        error = null; cargando = true; StateHasChanged();
+        try
+        {
+            var result = await Api.LoginAsync(request);
+            if (result is null)
+                error = "Correo o contraseña incorrectos, o cuenta inactiva.";
+            else
+            {
+                Session.SetSession(result);
+                if (recordar) await Store.SaveAsync(result);
+                else Store.Clear();
+                Nav.NavigateTo("/");
+            }
+        }
+        catch { error = "No se pudo conectar con el servidor. Verifica tu conexión."; }
+        finally { cargando = false; }
+    }
+
+    private void AbrirRegistro()
+    {
+        modoRegistro = true;
+        error = null;
+        reg = new RegistroRequest();
+        apellidoPaterno = apellidoMaterno = telefono = "";
+        ladaSel = "+52";
+    }
+
+    private async Task HandleRegistro()
+    {
+        error = null;
+
+        // ── Validaciones ──
+        if (string.IsNullOrWhiteSpace(reg.FirstName)) { error = "El nombre es requerido."; return; }
+        if (string.IsNullOrWhiteSpace(apellidoPaterno)) { error = "El apellido paterno es requerido."; return; }
+
+        if (ContieneNumero(reg.FirstName) || ContieneNumero(reg.SecondName) ||
+            ContieneNumero(apellidoPaterno) || ContieneNumero(apellidoMaterno))
+        { error = "El nombre y los apellidos no pueden contener números."; return; }
+
+        if (reg.ParishId == 0) { error = "Selecciona tu parroquia."; return; }
+        if (string.IsNullOrWhiteSpace(reg.Email)) { error = "El correo es requerido."; return; }
+        if (string.IsNullOrWhiteSpace(reg.Password) || reg.Password.Length < 6)
+        { error = "La contraseña debe tener al menos 6 caracteres."; return; }
+
+        if (!string.IsNullOrWhiteSpace(telefono))
+        {
+            if (!telefono.All(char.IsDigit) || telefono.Length != 10)
+            { error = "El teléfono debe tener exactamente 10 dígitos."; return; }
+        }
+
+        // Combinar apellidos y teléfono con lada
+        reg.LastName = $"{apellidoPaterno} {apellidoMaterno}".Trim();
+        reg.MobilePhone = string.IsNullOrWhiteSpace(telefono) ? null : $"{ladaSel} {telefono}";
+
+        cargando = true; StateHasChanged();
+        try
+        {
+            var (sesion, err) = await Api.RegistrarAsync(reg);
+            if (sesion != null)
+            {
+                Session.SetSession(sesion);
+                await Store.SaveAsync(sesion);
+                Nav.NavigateTo("/");
+            }
+            else { error = err ?? "No se pudo crear la cuenta."; }
+        }
+        catch { error = "No se pudo conectar con el servidor."; }
+        finally { cargando = false; }
+    }
+
+    private static bool ContieneNumero(string? s) =>
+        !string.IsNullOrEmpty(s) && s.Any(char.IsDigit);
+}

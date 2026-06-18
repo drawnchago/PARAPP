@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>PsilmtyApp</title>
+    <base href="/" />
+    <link rel="stylesheet" href="lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="PsilmtyApp.styles.css" />
+    <link rel="icon" href="data:,">
+</head>
+
+<body>
+
+    <div class="status-bar-safe-area"></div>
+
+    <div id="app">Loading...</div>
+
+    <div id="blazor-error-ui" data-nosnippet>
+        An unhandled error has occurred.
+        <a href="." class="reload">Reload</a>
+        <span class="dismiss">🗙</span>
+    </div>
+
+    <script src="_framework/blazor.webview.js" autostart="false"></script>
+    <script>
+        function aplicarTema(primario, secundario, fondo, superficie, texto, textoSuave, acento, error) {
+            const r = document.documentElement;
+            r.style.setProperty('--color-primario',    primario);
+            r.style.setProperty('--color-secundario',  secundario);
+            r.style.setProperty('--color-fondo',       fondo);
+            r.style.setProperty('--color-superficie',  superficie);
+            r.style.setProperty('--color-texto',       texto);
+            r.style.setProperty('--color-texto-suave', textoSuave);
+            r.style.setProperty('--color-acento',      acento);
+            r.style.setProperty('--color-error',       error);
+            document.body.style.backgroundColor = fondo;
+            document.body.style.color = texto;
+        }
+
+        // Aplica el color de la parroquia (principal + secundario y acento)
+        function aplicarColorParroquia(primario, secundario) {
+            const r = document.documentElement;
+            r.style.setProperty('--color-primario',   primario);
+            r.style.setProperty('--color-secundario', secundario);
+            r.style.setProperty('--color-acento',     primario);
+        }
+    </script>
+
+</body>
+
+</html>

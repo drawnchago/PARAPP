@@ -1,0 +1,209 @@
+@page "/grupos"
+@inject ApiService Api
+@inject SessionService Session
+@inject NavigationManager Nav
+
+<div class="module-container">
+    <div class="module-header">
+        <h2>🎸 Grupos</h2>
+        @if (permiso?.PuedeCrear == true)
+        {
+            <button class="btn btn-primary" @onclick="AbrirFormulario">+ Nuevo</button>
+        }
+    </div>
+
+    @if (cargando)
+    {
+        <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (!grupos.Any())
+    {
+        <div class="empty-state"><span class="empty-icon">👥</span><p>No hay grupos registrados.</p></div>
+    }
+    else
+    {
+        <div class="items-grid">
+            @foreach (var g in grupos)
+            {
+                <div class="item-card">
+                    <h5 class="item-title">@g.Name</h5>
+                    @if (g.Description != null) { <p class="news-summary">@g.Description</p> }
+                    <div class="item-meta">
+                        @if (g.LeaderName != null) { <span>👤 @g.LeaderName</span> }
+                        <span>👥 @g.MemberCount miembros</span>
+                    </div>
+                    <div class="item-footer">
+                        <small class="text-muted">@g.ParishName</small>
+                        <button class="btn btn-sm btn-outline-primary" @onclick="() => VerMiembros(g)">Ver miembros</button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- Modal nuevo grupo -->
+@if (mostrarFormulario)
+{
+    <div class="modal-overlay" @onclick="CerrarFormulario">
+        <div class="modal-card" @onclick:stopPropagation>
+            <h4>Nuevo Grupo</h4>
+            <div class="mb-3">
+                <label class="form-label">Nombre *</label>
+                <input class="form-control" @bind="nuevoNombre" placeholder="Coro, Liturgia, Catequesis…" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Descripción</label>
+                <textarea class="form-control" @bind="nuevaDescripcion" rows="2"></textarea>
+            </div>
+
+            @if (errorForm != null) { <div class="alert alert-danger py-2">@errorForm</div> }
+
+            <div class="d-flex gap-2 justify-content-end">
+                <button class="btn btn-secondary" @onclick="CerrarFormulario">Cancelar</button>
+                <button class="btn btn-primary" @onclick="Guardar" disabled="@guardando">
+                    @(guardando ? "Guardando..." : "Guardar")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal miembros -->
+@if (mostrarMiembros && grupoSel != null)
+{
+    <div class="modal-overlay" @onclick="() => mostrarMiembros = false">
+        <div class="modal-card" @onclick:stopPropagation>
+            <h4>@grupoSel.Name — Miembros</h4>
+
+            @if (permiso?.PuedeEditar == true)
+            {
+                <div class="perm-search-box mb-3">
+                    <input class="form-control" placeholder="Buscar usuario para agregar..."
+                           value="@busqueda" @oninput="BuscarUsuarios" />
+                    @if (resultados.Any())
+                    {
+                        <div class="search-dropdown">
+                            @foreach (var u in resultados.Where(u => !miembros.Any(m => m.UserId == u.Id)))
+                            {
+                                <div class="search-item" @onclick="() => AgregarMiembro(u)">
+                                    <div class="search-item-avatar">@u.Nombre[0]@u.Apellido[0]</div>
+                                    <div><strong>@u.Nombre @u.Apellido</strong><small class="d-block text-muted">@u.Correo</small></div>
+                                    <span class="ms-auto text-success">+ Agregar</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            @if (!miembros.Any())
+            {
+                <p class="text-muted">Este grupo no tiene miembros aún.</p>
+            }
+            else
+            {
+                <div class="adoradores-list">
+                    @foreach (var m in miembros)
+                    {
+                        <div class="adorador-row">
+                            <div class="adorador-avatar">@m.Nombre[0]@m.Apellido[0]</div>
+                            <div class="adorador-info">
+                                <strong>@m.Nombre @m.Apellido</strong>
+                                <div class="adorador-meta">
+                                    <span class="chip @RolClase(m.RoleInGroup)">@RolNombre(m.RoleInGroup)</span>
+                                    @if (m.Telefono != null) { <span class="chip">📱 @m.Telefono</span> }
+                                </div>
+                            </div>
+                            @if (permiso?.PuedeEditar == true)
+                            {
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => QuitarMiembro(m)">×</button>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="d-flex justify-content-end mt-3">
+                <button class="btn btn-secondary" @onclick="() => mostrarMiembros = false">Cerrar</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<GrupoDto> grupos = [];
+    private List<GrupoMiembroDto> miembros = [];
+    private List<UsuarioDto> resultados = [];
+    private ModuloPermiso? permiso;
+    private bool cargando = true, mostrarFormulario, guardando, mostrarMiembros;
+    private string? errorForm;
+    private string nuevoNombre = "", nuevaDescripcion = "", busqueda = "";
+    private GrupoDto? grupoSel;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+        permiso = Session.ObtenerPermiso("groups");
+        if (permiso?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
+        await Cargar();
+    }
+
+    private async Task Cargar()
+    {
+        cargando = true;
+        grupos = await Api.GetGruposAsync();
+        cargando = false;
+    }
+
+    private void AbrirFormulario() { nuevoNombre = ""; nuevaDescripcion = ""; errorForm = null; mostrarFormulario = true; }
+    private void CerrarFormulario() => mostrarFormulario = false;
+
+    private async Task Guardar()
+    {
+        if (string.IsNullOrWhiteSpace(nuevoNombre)) { errorForm = "El nombre es requerido."; return; }
+        guardando = true;
+        var r = await Api.CrearGrupoAsync(new { name = nuevoNombre, description = nuevaDescripcion });
+        guardando = false;
+        if (r is null) { errorForm = "Error al guardar."; return; }
+        mostrarFormulario = false;
+        await Cargar();
+    }
+
+    private async Task VerMiembros(GrupoDto g)
+    {
+        grupoSel = g;
+        busqueda = "";
+        resultados = [];
+        mostrarMiembros = true;
+        miembros = await Api.GetMiembrosGrupoAsync(g.Id);
+    }
+
+    private async Task BuscarUsuarios(ChangeEventArgs e)
+    {
+        var q = e.Value?.ToString() ?? "";
+        busqueda = q;
+        resultados = q.Length >= 2 ? await Api.BuscarUsuariosAsync(q) : [];
+    }
+
+    private async Task AgregarMiembro(UsuarioDto u)
+    {
+        if (grupoSel is null) return;
+        await Api.AgregarMiembroGrupoAsync(grupoSel.Id, u.Id, "member");
+        resultados = [];
+        busqueda = "";
+        miembros = await Api.GetMiembrosGrupoAsync(grupoSel.Id);
+    }
+
+    private async Task QuitarMiembro(GrupoMiembroDto m)
+    {
+        if (grupoSel is null) return;
+        await Api.QuitarMiembroGrupoAsync(grupoSel.Id, m.UserId);
+        miembros = await Api.GetMiembrosGrupoAsync(grupoSel.Id);
+    }
+
+    private static string RolNombre(string r) => r switch
+    { "leader" => "Líder", "coordinator" => "Coordinador", _ => "Miembro" };
+    private static string RolClase(string r) => r switch
+    { "leader" => "chip-role", "coordinator" => "chip-group", _ => "" };
+}
