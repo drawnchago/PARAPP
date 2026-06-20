@@ -1,16 +1,16 @@
-INSERT INTO modules(code,name,description,icon,route,sort_order,is_active,created_at,created_by)
+INSERT INTO modules(code,name,description,icon,route,sort_order,status,created_at,created_by)
 SELECT 'countries','Países','Administración del catálogo de países','🌎','/catalogos/paises',90,1,UTC_TIMESTAMP(),1
 WHERE NOT EXISTS (SELECT 1 FROM modules WHERE code='countries');
 
-INSERT INTO modules(code,name,description,icon,route,sort_order,is_active,created_at,created_by)
+INSERT INTO modules(code,name,description,icon,route,sort_order,status,created_at,created_by)
 SELECT 'states','Estados','Administración del catálogo de estados','🗺️','/catalogos/estados',91,1,UTC_TIMESTAMP(),1
 WHERE NOT EXISTS (SELECT 1 FROM modules WHERE code='states');
 
-INSERT INTO modules(code,name,description,icon,route,sort_order,is_active,created_at,created_by)
+INSERT INTO modules(code,name,description,icon,route,sort_order,status,created_at,created_by)
 SELECT 'neighborhoods','Colonias','Administración del catálogo de colonias','🏘️','/catalogos/colonias',92,1,UTC_TIMESTAMP(),1
 WHERE NOT EXISTS (SELECT 1 FROM modules WHERE code='neighborhoods');
 
-INSERT INTO permissions(module_id,code,description,is_active,created_at,created_by)
+INSERT INTO permissions(module_id,code,description,status,created_at,created_by)
 SELECT m.id,p.code,CONCAT(p.label,' ',m.name),1,UTC_TIMESTAMP(),1
 FROM modules m
 JOIN (

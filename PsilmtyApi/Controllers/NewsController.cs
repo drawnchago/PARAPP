@@ -19,7 +19,7 @@ public sealed class NewsController(IApplicationDataService service, IDatabaseRep
     [HttpGet("categorias")]
     public async Task<IActionResult> GetCategories() =>
         Ok(await repository.QueryAsync<object>(
-            "SELECT id Id, name Name FROM news_categories WHERE is_active=1 ORDER BY name"));
+            "SELECT id Id, name Name FROM news_categories WHERE status=1 ORDER BY name"));
 
     [HttpPost]
     public async Task<IActionResult> Create(NewsRequest request) =>
@@ -33,7 +33,7 @@ public sealed class NewsController(IApplicationDataService service, IDatabaseRep
     public async Task<IActionResult> Delete(uint id)
     {
         await repository.ExecuteAsync(
-            "UPDATE news SET is_active=0, updated_at=UTC_TIMESTAMP(), updated_by=@UserId WHERE id=@Id AND parish_id=@ParishId",
+            "UPDATE news SET status=0, updated_at=UTC_TIMESTAMP(), updated_by=@UserId WHERE id=@Id AND parish_id=@ParishId",
             new { Id = id, UserId = User.GetUserId(), ParishId = User.GetParishId() });
         return NoContent();
     }

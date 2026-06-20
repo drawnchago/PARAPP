@@ -13,27 +13,30 @@ public sealed class PermissionsController(IDatabaseRepository repository) : Cont
     [HttpGet("roles")]
     public async Task<IActionResult> GetRoles() =>
         Ok(await repository.QueryAsync<object>(
-            "SELECT id Id,name Name,description Description,is_system IsSystem FROM roles WHERE is_active=1 ORDER BY name"));
+            "SELECT id Id,name Name,description Description,is_system IsSystem FROM roles WHERE status=1 ORDER BY name"));
 
     [HttpGet("modulos/buscar")]
     public async Task<IActionResult> SearchModules([FromQuery] string q = "") =>
         Ok(await repository.QueryAsync<object>("""
-            SELECT id ModuleId,code Code,name Name,description Description,icon Icon,route Route
-            FROM modules WHERE is_active=1 AND (@Query='' OR name LIKE CONCAT('%',@Query,'%'))
+            SELECT id ModuleId,parent_id ParentId,code Code,name Name,description Description,icon Icon,route Route
+            FROM modules
+            WHERE status=1
+              AND id NOT IN (SELECT DISTINCT parent_id FROM modules WHERE parent_id IS NOT NULL)
+              AND (@Query='' OR name LIKE CONCAT('%',@Query,'%'))
             ORDER BY sort_order,name
             """, new { Query = q }));
 
     [HttpGet("usuarios/{userId:int}/modulos")]
     public async Task<IActionResult> GetUserModules(uint userId) =>
         Ok(await repository.QueryAsync<object>("""
-            SELECT m.id ModuleId,m.code Code,m.name Name,m.description Description,m.icon Icon,m.route Route,
+            SELECT m.id ModuleId,m.parent_id ParentId,m.code Code,m.name Name,m.description Description,m.icon Icon,m.route Route,
                    MAX(p.code='view') CanView,MAX(p.code='create') CanCreate,
                    MAX(p.code='edit') CanEdit,MAX(p.code='delete') CanDelete
             FROM modules m
-            JOIN permissions p ON p.module_id=m.id AND p.is_active=1
+            JOIN permissions p ON p.module_id=m.id AND p.status=1
             JOIN role_permissions rp ON rp.permission_id=p.id
             JOIN user_roles ur ON ur.role_id=rp.role_id AND ur.user_id=@UserId
-            WHERE m.is_active=1 GROUP BY m.id,m.code,m.name,m.description,m.icon,m.route,m.sort_order
+            WHERE m.status=1 GROUP BY m.id,m.parent_id,m.code,m.name,m.description,m.icon,m.route,m.sort_order
             ORDER BY m.sort_order,m.name
             """, new { UserId = userId }));
 
@@ -45,7 +48,7 @@ public sealed class PermissionsController(IDatabaseRepository repository) : Cont
             JOIN user_roles ur ON ur.user_id=u.id
             JOIN role_permissions rp ON rp.role_id=ur.role_id
             JOIN permissions p ON p.id=rp.permission_id AND p.module_id=@ModuleId AND p.code='view'
-            WHERE u.is_active=1 AND (@IsSuperAdmin=1 OR u.parish_id=@ParishId)
+            WHERE u.status=1 AND (@IsSuperAdmin=1 OR u.parish_id=@ParishId)
             ORDER BY u.first_name,u.last_name
             """, new { ModuleId = moduleId, IsSuperAdmin = User.IsSuperAdmin(), ParishId = User.GetParishId() }));
 

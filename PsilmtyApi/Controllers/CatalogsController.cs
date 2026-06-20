@@ -14,7 +14,7 @@ public sealed class CatalogsController(IDatabaseRepository repository) : Control
     public async Task<IActionResult> GetCountries() =>
         Ok(await repository.QueryAsync<CountryResponse>("""
             SELECT id Id,code Code,name Name
-            FROM countries WHERE is_active=1 ORDER BY name
+            FROM countries WHERE status=1 ORDER BY name
             """));
 
     [HttpGet("estados")]
@@ -22,7 +22,7 @@ public sealed class CatalogsController(IDatabaseRepository repository) : Control
         Ok(await repository.QueryAsync<StateResponse>("""
             SELECT id Id,country_id CountryId,code Code,name Name
             FROM states
-            WHERE country_id=@CountryId AND is_active=1
+            WHERE country_id=@CountryId AND status=1
             ORDER BY name
             """, new { CountryId = countryId }));
 
@@ -38,7 +38,7 @@ public sealed class CatalogsController(IDatabaseRepository repository) : Control
             SELECT id Id,state_id StateId,postal_code PostalCode,name Name,
                    settlement_type SettlementType,municipality Municipality,city City
             FROM neighborhoods
-            WHERE state_id=@StateId AND is_active=1
+            WHERE state_id=@StateId AND status=1
               AND (@Query='' OR name LIKE CONCAT('%',@Query,'%')
                    OR municipality LIKE CONCAT('%',@Query,'%')
                    OR city LIKE CONCAT('%',@Query,'%'))

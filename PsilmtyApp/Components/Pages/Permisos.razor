@@ -74,7 +74,7 @@
                         {
                             <div class="modulo-perm-card @(m.CanView ? "has-access" : "")">
                                 <div class="modulo-perm-header">
-                                    <span class="modulo-perm-icon">@IconoEmoji(m.Code)</span>
+                                    <span class="modulo-perm-icon">@Ico(m.Icon)</span>
                                     <span class="modulo-perm-name">@m.Name</span>
                                     <input type="checkbox" class="form-check-input ms-auto"
                                            checked="@m.CanView"
@@ -121,7 +121,7 @@
                 {
                     <button class="modulo-selector-btn @(m.Code == moduloSeleccionado?.Code ? "active" : "")"
                             @onclick="() => SeleccionarModulo(m)">
-                        <span>@IconoEmoji(m.Code)</span>
+                        <span>@Ico(m.Icon)</span>
                         <span>@m.Name</span>
                     </button>
                 }
@@ -130,7 +130,7 @@
             @if (moduloSeleccionado != null)
             {
                 <div class="modulo-selected-header">
-                    <span class="modulo-icon-lg">@IconoEmoji(moduloSeleccionado.Code)</span>
+                    <span class="modulo-icon-lg">@Ico(moduloSeleccionado.Icon)</span>
                     <div>
                         <h5 class="mb-0">@moduloSeleccionado.Name</h5>
                         <small class="text-muted">Usuarios con acceso</small>
@@ -308,12 +308,6 @@
         usuariosConAcceso.RemoveAll(x => x.Id == u.Id);
     }
 
-    private static string IconoEmoji(string code) => code switch
-    {
-        "adoration"     => "🎵", "groups"     => "🎸", "calendar"  => "📅",
-        "settings"      => "⚙️", "home"       => "🏠", "news"      => "📰",
-        "notifications" => "🔔", "donations"  => "💝", "users"     => "👥",
-        "sacraments"    => "⛪", "gallery"    => "🖼️", "intentions"=> "🕯️",
-        "requests"      => "📋", _            => "📦"
-    };
+    // El icono proviene de la base de datos; fallback genérico si viniera vacío.
+    private static string Ico(string? icon) => string.IsNullOrEmpty(icon) ? "📦" : icon;
 }

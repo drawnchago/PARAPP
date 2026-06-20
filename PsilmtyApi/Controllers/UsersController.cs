@@ -17,7 +17,7 @@ public sealed class UsersController(IDatabaseRepository repository) : Controller
         var effectiveParishId = User.IsSuperAdmin() ? parishId : User.GetParishId();
         return Ok(await repository.QueryAsync<object>("""
             SELECT u.id Id, u.first_name Nombre, u.last_name Apellido, u.second_last_name Apellido2,
-                   u.email Correo, u.mobile_phone Telefono, u.photo_url FotoUrl, u.is_active Activo,
+                   u.email Correo, u.mobile_phone Telefono, u.photo_url FotoUrl, u.status Activo,
                    u.parish_id ParishId, p.name ParishName, u.created_at CreatedAt, u.last_login LastLogin,
                    u.address Address,u.zip_code ZipCode,u.city City,
                    u.state_id StateId,u.neighborhood_id NeighborhoodId,s.country_id CountryId,
@@ -29,7 +29,7 @@ public sealed class UsersController(IDatabaseRepository repository) : Controller
             LEFT JOIN neighborhoods n ON n.id=u.neighborhood_id
             LEFT JOIN user_roles ur ON ur.user_id=u.id
             LEFT JOIN roles r ON r.id=ur.role_id
-            LEFT JOIN group_members gm ON gm.user_id=u.id AND gm.is_active=1
+            LEFT JOIN group_members gm ON gm.user_id=u.id AND gm.status=1
             WHERE (@ParishId IS NULL OR u.parish_id=@ParishId)
               AND (@GroupId IS NULL OR gm.group_id=@GroupId)
               AND (@Query='' OR CONCAT_WS(' ',u.first_name,u.last_name,u.email) LIKE CONCAT('%',@Query,'%'))
@@ -44,7 +44,7 @@ public sealed class UsersController(IDatabaseRepository repository) : Controller
             SELECT id Id, first_name Nombre, last_name Apellido, second_last_name Apellido2,
                    email Correo, mobile_phone Telefono, photo_url FotoUrl
             FROM users
-            WHERE is_active=1 AND parish_id=@ParishId
+            WHERE status=1 AND parish_id=@ParishId
               AND CONCAT_WS(' ',first_name,last_name,email) LIKE CONCAT('%',@Query,'%')
             ORDER BY first_name,last_name LIMIT 30
             """, new { ParishId = User.GetParishId(), Query = q }));
@@ -119,7 +119,7 @@ public sealed class UsersController(IDatabaseRepository repository) : Controller
         var id = await repository.ExecuteScalarAsync<uint>("""
             INSERT INTO users
                 (parish_id,first_name,last_name,second_last_name,email,password_hash,mobile_phone,gender,
-                 address,state_id,neighborhood_id,state,neighborhood,zip_code,city,is_active,created_at,created_by)
+                 address,state_id,neighborhood_id,state,neighborhood,zip_code,city,status,created_at,created_by)
             VALUES
                 (@ParishId,@FirstName,@LastName,@SecondLastName,@Email,@Hash,@MobilePhone,@Gender,
                  @Address,@StateId,@NeighborhoodId,
@@ -175,7 +175,7 @@ public sealed class UsersController(IDatabaseRepository repository) : Controller
         if (!stateId.HasValue) return false;
         return await repository.ExecuteScalarAsync<int>("""
             SELECT COUNT(*) FROM neighborhoods
-            WHERE id=@NeighborhoodId AND state_id=@StateId AND is_active=1
+            WHERE id=@NeighborhoodId AND state_id=@StateId AND status=1
             """, new { StateId = stateId.Value, NeighborhoodId = neighborhoodId.Value }) == 1;
     }
 

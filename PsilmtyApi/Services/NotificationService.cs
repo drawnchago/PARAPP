@@ -13,7 +13,7 @@ public sealed class NotificationService(
             INSERT INTO notifications
                 (parish_id, created_by_user, title, body, image_url, type,
                  reference_type, reference_id, audience, audience_role_id,
-                 audience_user_id, scheduled_at, is_sent, is_active, created_at, created_by)
+                 audience_user_id, scheduled_at, is_sent, status, created_at, created_by)
             VALUES
                 (@ParishId, @UserId, @Title, @Body, @ImageUrl, @Type,
                  @ReferenceType, @ReferenceId, @Audience, @AudienceRoleId,
@@ -39,14 +39,14 @@ public sealed class NotificationService(
         repository.ExecuteAsync("""
             INSERT INTO user_devices
                 (user_id, push_token, platform, device_model, os_version, app_version,
-                 last_used_at, is_active, created_at, created_by)
+                 last_used_at, status, created_at, created_by)
             VALUES
                 (@UserId, @PushToken, @Platform, @DeviceModel, @OsVersion, @AppVersion,
                  UTC_TIMESTAMP(), 1, UTC_TIMESTAMP(), @UserId)
             ON DUPLICATE KEY UPDATE
                 user_id=VALUES(user_id), platform=VALUES(platform),
                 device_model=VALUES(device_model), os_version=VALUES(os_version),
-                app_version=VALUES(app_version), last_used_at=UTC_TIMESTAMP(), is_active=1,
+                app_version=VALUES(app_version), last_used_at=UTC_TIMESTAMP(), status=1,
                 updated_at=UTC_TIMESTAMP(), updated_by=@UserId
             """, new
         {
@@ -65,7 +65,7 @@ public sealed class NotificationService(
                    nu.is_read IsRead, nu.read_at ReadAt, nu.received_at ReceivedAt
             FROM notification_users nu
             JOIN notifications n ON n.id = nu.notification_id
-            WHERE nu.user_id=@UserId AND n.is_active=1
+            WHERE nu.user_id=@UserId AND n.status=1
             ORDER BY nu.received_at DESC
             """, new { UserId = userId });
 
@@ -82,7 +82,7 @@ public sealed class NotificationService(
             SELECT id, parish_id ParishId, title, body, image_url ImageUrl, type,
                    audience, audience_role_id AudienceRoleId, audience_user_id AudienceUserId
             FROM notifications
-            WHERE is_active=1 AND is_sent=0 AND COALESCE(scheduled_at, created_at) <= UTC_TIMESTAMP()
+            WHERE status=1 AND is_sent=0 AND COALESCE(scheduled_at, created_at) <= UTC_TIMESTAMP()
             ORDER BY COALESCE(scheduled_at, created_at)
             LIMIT 100
             """);
@@ -94,9 +94,9 @@ public sealed class NotificationService(
                 SELECT DISTINCT u.id UserId, d.push_token PushToken
                 FROM users u
                 JOIN user_preferences pref ON pref.user_id=u.id AND pref.push_notifications=1
-                JOIN user_devices d ON d.user_id=u.id AND d.is_active=1
+                JOIN user_devices d ON d.user_id=u.id AND d.status=1
                 LEFT JOIN user_roles ur ON ur.user_id=u.id
-                WHERE u.is_active=1 AND u.parish_id=@ParishId
+                WHERE u.status=1 AND u.parish_id=@ParishId
                   AND (@Audience='all'
                     OR (@Audience='user' AND u.id=@AudienceUserId)
                     OR (@Audience='role' AND ur.role_id=@AudienceRoleId))

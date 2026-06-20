@@ -84,7 +84,7 @@ public sealed class ParishesController(
         {
             if (!stateId.HasValue || await repository.ExecuteScalarAsync<int>("""
                 SELECT COUNT(*) FROM neighborhoods
-                WHERE id=@NeighborhoodId AND state_id=@StateId AND is_active=1
+                WHERE id=@NeighborhoodId AND state_id=@StateId AND status=1
                 """, new { StateId = stateId.Value, NeighborhoodId = neighborhoodId.Value }) != 1)
                 return BadRequest(new { message = "The selected neighborhood does not belong to the selected state." });
         }
@@ -134,13 +134,13 @@ public sealed class ParishesController(
             SELECT p.id Id,p.name Name,p.diocese Diocese,p.address Address,p.city City,
                    p.state State,p.country Country,p.phone Phone,p.email Email,p.website Website,
                    p.logo_url LogoUrl,p.image_url ImageUrl,p.description Description,
-                   p.patron_saint PatronSaint,p.is_active IsActive,p.state_id StateId,
+                   p.patron_saint PatronSaint,p.status IsActive,p.state_id StateId,
                    p.neighborhood_id NeighborhoodId,s.country_id CountryId,
                    n.name Neighborhood,n.postal_code ZipCode
             FROM parishes p
             LEFT JOIN states s ON s.id=p.state_id
             LEFT JOIN neighborhoods n ON n.id=p.neighborhood_id
-            WHERE p.is_active=1 AND (@Id IS NULL OR p.id=@Id)
+            WHERE p.status=1 AND (@Id IS NULL OR p.id=@Id)
             ORDER BY p.name
             """, new { Id = id });
 

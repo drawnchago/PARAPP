@@ -16,9 +16,9 @@ public sealed class AdorersController(IDatabaseRepository repository) : Controll
     public async Task<IActionResult> Get([FromQuery] bool soloActivos = false) =>
         Ok(await repository.QueryAsync<object>("""
             SELECT a.id Id,u.first_name Nombre,u.last_name Apellido,u.email Correo,
-                   u.mobile_phone Telefono,a.notes Instrumento,a.is_active Activo,a.created_at CreatedAt
+                   u.mobile_phone Telefono,a.notes Instrumento,a.status Activo,a.created_at CreatedAt
             FROM adorers a JOIN users u ON u.id=a.user_id
-            WHERE a.parish_id=@ParishId AND (@OnlyActive=0 OR a.is_active=1)
+            WHERE a.parish_id=@ParishId AND (@OnlyActive=0 OR a.status=1)
             ORDER BY u.first_name,u.last_name
             """, new { ParishId = User.GetParishId(), OnlyActive = soloActivos }));
 
@@ -32,7 +32,7 @@ public sealed class AdorersController(IDatabaseRepository repository) : Controll
         {
             userId = await repository.ExecuteScalarAsync<uint>("""
                 INSERT INTO users
-                    (parish_id,first_name,last_name,email,mobile_phone,password_hash,is_active,created_at,created_by)
+                    (parish_id,first_name,last_name,email,mobile_phone,password_hash,status,created_at,created_by)
                 VALUES
                     (@ParishId,@FirstName,@LastName,@Email,@Phone,@PasswordHash,1,UTC_TIMESTAMP(),@CreatorId);
                 SELECT LAST_INSERT_ID();
@@ -51,7 +51,7 @@ public sealed class AdorersController(IDatabaseRepository repository) : Controll
 
         var id = await repository.ExecuteScalarAsync<uint>("""
             INSERT INTO adorers
-                (user_id,parish_id,start_datetime,commitment_type,notes,is_active,created_at,created_by)
+                (user_id,parish_id,start_datetime,commitment_type,notes,status,created_at,created_by)
             VALUES
                 (@TargetUserId,@ParishId,UTC_TIMESTAMP(),'permanent',@Instrument,1,UTC_TIMESTAMP(),@CreatorId);
             SELECT LAST_INSERT_ID();
@@ -67,7 +67,7 @@ public sealed class AdorersController(IDatabaseRepository repository) : Controll
     public async Task<IActionResult> Delete(uint id)
     {
         await repository.ExecuteAsync(
-            "UPDATE adorers SET is_active=0,updated_at=UTC_TIMESTAMP(),updated_by=@UserId WHERE id=@Id AND parish_id=@ParishId",
+            "UPDATE adorers SET status=0,updated_at=UTC_TIMESTAMP(),updated_by=@UserId WHERE id=@Id AND parish_id=@ParishId",
             new { Id = id, UserId = User.GetUserId(), ParishId = User.GetParishId() });
         return NoContent();
     }

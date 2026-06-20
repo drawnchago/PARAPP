@@ -16,9 +16,9 @@ public sealed class LocationCatalogAdminController(IDatabaseRepository repositor
     [HttpGet("paises")]
     public async Task<IActionResult> GetCountries([FromQuery] string q = "", [FromQuery] bool includeInactive = true) =>
         Ok(await repository.QueryAsync<CountryResponse>("""
-            SELECT id Id,code Code,name Name,is_active IsActive,created_at CreatedAt,updated_at UpdatedAt
+            SELECT id Id,code Code,name Name,status IsActive,created_at CreatedAt,updated_at UpdatedAt
             FROM countries
-            WHERE (@IncludeInactive=1 OR is_active=1)
+            WHERE (@IncludeInactive=1 OR status=1)
               AND (@Query='' OR name LIKE CONCAT('%',@Query,'%') OR code LIKE CONCAT('%',@Query,'%'))
             ORDER BY name
             """, new { Query = q.Trim(), IncludeInactive = includeInactive }));
@@ -28,7 +28,7 @@ public sealed class LocationCatalogAdminController(IDatabaseRepository repositor
     {
         Normalize(request);
         var id = await repository.ExecuteScalarAsync<uint>("""
-            INSERT INTO countries(code,name,is_active,created_at,created_by)
+            INSERT INTO countries(code,name,status,created_at,created_by)
             VALUES(@Code,@Name,@IsActive,UTC_TIMESTAMP(),@UserId);
             SELECT LAST_INSERT_ID();
             """, new { request.Code, request.Name, request.IsActive, UserId = User.GetUserId() });
@@ -40,7 +40,7 @@ public sealed class LocationCatalogAdminController(IDatabaseRepository repositor
     {
         Normalize(request);
         await repository.ExecuteAsync("""
-            UPDATE countries SET code=@Code,name=@Name,is_active=@IsActive,
+            UPDATE countries SET code=@Code,name=@Name,status=@IsActive,
                 updated_at=UTC_TIMESTAMP(),updated_by=@UserId WHERE id=@Id
             """, new { Id = id, request.Code, request.Name, request.IsActive, UserId = User.GetUserId() });
         return Ok(new { id });
@@ -57,10 +57,10 @@ public sealed class LocationCatalogAdminController(IDatabaseRepository repositor
         [FromQuery] bool includeInactive = true) =>
         Ok(await repository.QueryAsync<StateResponse>("""
             SELECT s.id Id,s.country_id CountryId,s.code Code,s.name Name,c.name CountryName,
-                   s.is_active IsActive,s.created_at CreatedAt,s.updated_at UpdatedAt
+                   s.status IsActive,s.created_at CreatedAt,s.updated_at UpdatedAt
             FROM states s JOIN countries c ON c.id=s.country_id
             WHERE (@CountryId IS NULL OR s.country_id=@CountryId)
-              AND (@IncludeInactive=1 OR s.is_active=1)
+              AND (@IncludeInactive=1 OR s.status=1)
               AND (@Query='' OR s.name LIKE CONCAT('%',@Query,'%') OR s.code LIKE CONCAT('%',@Query,'%'))
             ORDER BY c.name,s.name
             """, new { CountryId = countryId, Query = q.Trim(), IncludeInactive = includeInactive }));
@@ -71,7 +71,7 @@ public sealed class LocationCatalogAdminController(IDatabaseRepository repositor
         Normalize(request);
         await EnsureActiveCountryAsync(request.CountryId);
         var id = await repository.ExecuteScalarAsync<uint>("""
-            INSERT INTO states(country_id,code,name,is_active,created_at,created_by)
+            INSERT INTO states(country_id,code,name,status,created_at,created_by)
             VALUES(@CountryId,@Code,@Name,@IsActive,UTC_TIMESTAMP(),@UserId);
             SELECT LAST_INSERT_ID();
             """, new { request.CountryId, request.Code, request.Name, request.IsActive, UserId = User.GetUserId() });
@@ -84,7 +84,7 @@ public sealed class LocationCatalogAdminController(IDatabaseRepository repositor
         Normalize(request);
         await EnsureActiveCountryAsync(request.CountryId);
         await repository.ExecuteAsync("""
-            UPDATE states SET country_id=@CountryId,code=@Code,name=@Name,is_active=@IsActive,
+            UPDATE states SET country_id=@CountryId,code=@Code,name=@Name,status=@IsActive,
                 updated_at=UTC_TIMESTAMP(),updated_by=@UserId WHERE id=@Id
             """, new { Id = id, request.CountryId, request.Code, request.Name, request.IsActive, UserId = User.GetUserId() });
         return Ok(new { id });
@@ -105,12 +105,12 @@ public sealed class LocationCatalogAdminController(IDatabaseRepository repositor
                    n.settlement_type SettlementType,n.municipality Municipality,n.city City,
                    s.name StateName,c.name CountryName,n.postal_state_code PostalStateCode,
                    n.municipality_code MunicipalityCode,n.settlement_code SettlementCode,n.zone Zone,
-                   n.is_active IsActive,n.created_at CreatedAt,n.updated_at UpdatedAt
+                   n.status IsActive,n.created_at CreatedAt,n.updated_at UpdatedAt
             FROM neighborhoods n
             JOIN states s ON s.id=n.state_id
             JOIN countries c ON c.id=s.country_id
             WHERE (@StateId IS NULL OR n.state_id=@StateId)
-              AND (@IncludeInactive=1 OR n.is_active=1)
+              AND (@IncludeInactive=1 OR n.status=1)
               AND (@PostalCode='' OR n.postal_code=@PostalCode)
               AND (@Query='' OR n.name LIKE CONCAT('%',@Query,'%')
                    OR n.municipality LIKE CONCAT('%',@Query,'%')
@@ -131,7 +131,7 @@ public sealed class LocationCatalogAdminController(IDatabaseRepository repositor
         var id = await repository.ExecuteScalarAsync<uint>("""
             INSERT INTO neighborhoods
                 (state_id,postal_code,name,settlement_type,municipality,city,postal_state_code,
-                 municipality_code,settlement_code,zone,is_active,created_at,created_by)
+                 municipality_code,settlement_code,zone,status,created_at,created_by)
             VALUES
                 (@StateId,@PostalCode,@Name,@SettlementType,@Municipality,@City,@PostalStateCode,
                  @MunicipalityCode,@SettlementCode,@Zone,@IsActive,UTC_TIMESTAMP(),@UserId);
@@ -155,7 +155,7 @@ public sealed class LocationCatalogAdminController(IDatabaseRepository repositor
             UPDATE neighborhoods SET state_id=@StateId,postal_code=@PostalCode,name=@Name,
                 settlement_type=@SettlementType,municipality=@Municipality,city=@City,
                 postal_state_code=@PostalStateCode,municipality_code=@MunicipalityCode,
-                settlement_code=@SettlementCode,zone=@Zone,is_active=@IsActive,
+                settlement_code=@SettlementCode,zone=@Zone,status=@IsActive,
                 updated_at=UTC_TIMESTAMP(),updated_by=@UserId WHERE id=@Id
             """, new
         {
@@ -175,7 +175,7 @@ public sealed class LocationCatalogAdminController(IDatabaseRepository repositor
     {
         if (table is not ("countries" or "states" or "neighborhoods")) return BadRequest();
         await repository.ExecuteAsync(
-            $"UPDATE {table} SET is_active=@Active,updated_at=UTC_TIMESTAMP(),updated_by=@UserId WHERE id=@Id",
+            $"UPDATE {table} SET status=@Active,updated_at=UTC_TIMESTAMP(),updated_by=@UserId WHERE id=@Id",
             new { Id = id, Active = active, UserId = User.GetUserId() });
         return NoContent();
     }
@@ -183,14 +183,14 @@ public sealed class LocationCatalogAdminController(IDatabaseRepository repositor
     private async Task EnsureActiveCountryAsync(uint id)
     {
         if (await repository.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM countries WHERE id=@Id AND is_active=1", new { Id = id }) != 1)
+            "SELECT COUNT(*) FROM countries WHERE id=@Id AND status=1", new { Id = id }) != 1)
             throw new InvalidOperationException("The selected country is not active.");
     }
 
     private async Task EnsureActiveStateAsync(uint id)
     {
         if (await repository.ExecuteScalarAsync<int>(
-            "SELECT COUNT(*) FROM states WHERE id=@Id AND is_active=1", new { Id = id }) != 1)
+            "SELECT COUNT(*) FROM states WHERE id=@Id AND status=1", new { Id = id }) != 1)
             throw new InvalidOperationException("The selected state is not active.");
     }
 

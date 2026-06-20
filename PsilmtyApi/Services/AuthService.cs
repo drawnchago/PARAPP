@@ -24,7 +24,7 @@ public sealed class AuthService(
         var user = await repository.QuerySingleAsync<AuthUserRow>("""
             SELECT u.id, u.parish_id ParishId, u.first_name FirstName, u.last_name LastName,
                    u.email, u.password_hash PasswordHash, u.photo_url PhotoUrl,
-                   p.name ParishName, p.logo_url ParishLogo, u.is_active IsActive
+                   p.name ParishName, p.logo_url ParishLogo, u.status IsActive
             FROM users u
             LEFT JOIN parishes p ON p.id = u.parish_id
             WHERE LOWER(u.email) = LOWER(@Login)
@@ -59,7 +59,7 @@ public sealed class AuthService(
             INSERT INTO users
                 (parish_id, first_name, last_name, second_last_name, email, password_hash,
                  mobile_phone, address, neighborhood, zip_code, city, state,
-                 state_id, neighborhood_id, is_active, created_at)
+                 state_id, neighborhood_id, status, created_at)
             VALUES
                 (@ParishId, @FirstName, @LastName, @SecondName, @Email, @PasswordHash,
                  @MobilePhone, @Address,
@@ -112,7 +112,7 @@ public sealed class AuthService(
 
         var valid = await repository.ExecuteScalarAsync<int>("""
             SELECT COUNT(*) FROM neighborhoods
-            WHERE id=@NeighborhoodId AND state_id=@StateId AND is_active=1
+            WHERE id=@NeighborhoodId AND state_id=@StateId AND status=1
             """, new { StateId = stateId.Value, NeighborhoodId = neighborhoodId.Value });
         if (valid == 0)
             throw new InvalidOperationException("The selected neighborhood does not belong to the selected state.");
@@ -123,32 +123,53 @@ public sealed class AuthService(
             SELECT r.name
             FROM roles r
             JOIN user_roles ur ON ur.role_id = r.id
-            WHERE ur.user_id = @UserId AND r.is_active = 1
+            WHERE ur.user_id = @UserId AND r.status = 1
             """, new { UserId = userId })).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     private async Task<IReadOnlyList<ModulePermissionResponse>> GetModulesAsync(uint userId, bool superAdmin)
     {
         if (superAdmin)
             return await repository.QueryAsync<ModulePermissionResponse>("""
-                SELECT id ModuloId, code Clave, name Nombre, icon Icono, route Ruta,
-                       TRUE PuedeVer, TRUE PuedeCrear, TRUE PuedeEditar, TRUE PuedeEliminar
-                FROM modules WHERE is_active = 1 ORDER BY sort_order, name
+                SELECT id ModuloId, parent_id ParentId, code Clave, name Nombre, icon Icono, route Ruta,
+                       TRUE PuedeVer, TRUE PuedeCrear, TRUE PuedeEditar, TRUE PuedeEliminar,
+                       sort_order SortOrder
+                FROM modules WHERE status = 1 ORDER BY sort_order, name
                 """);
 
+        // Módulos a los que el usuario tiene acceso por rol + los contenedores
+        // padre que tengan al menos un hijo visible (para pintar las cabeceras).
         return await repository.QueryAsync<ModulePermissionResponse>("""
-            SELECT m.id ModuloId, m.code Clave, m.name Nombre, m.icon Icono, m.route Ruta,
+            SELECT m.id ModuloId, m.parent_id ParentId, m.code Clave, m.name Nombre, m.icon Icono, m.route Ruta,
                    MAX(p.code = 'view') PuedeVer,
                    MAX(p.code = 'create') PuedeCrear,
                    MAX(p.code = 'edit') PuedeEditar,
-                   MAX(p.code = 'delete') PuedeEliminar
+                   MAX(p.code = 'delete') PuedeEliminar,
+                   m.sort_order SortOrder
             FROM modules m
-            JOIN permissions p ON p.module_id = m.id AND p.is_active = 1
+            JOIN permissions p ON p.module_id = m.id AND p.status = 1
             JOIN role_permissions rp ON rp.permission_id = p.id
             JOIN user_roles ur ON ur.role_id = rp.role_id AND ur.user_id = @UserId
-            WHERE m.is_active = 1
-            GROUP BY m.id, m.code, m.name, m.icon, m.route, m.sort_order
+            WHERE m.status = 1
+            GROUP BY m.id, m.parent_id, m.code, m.name, m.icon, m.route, m.sort_order
             HAVING PuedeVer = 1
-            ORDER BY m.sort_order, m.name
+
+            UNION
+
+            SELECT pa.id ModuloId, pa.parent_id ParentId, pa.code Clave, pa.name Nombre, pa.icon Icono, pa.route Ruta,
+                   TRUE PuedeVer, FALSE PuedeCrear, FALSE PuedeEditar, FALSE PuedeEliminar,
+                   pa.sort_order SortOrder
+            FROM modules pa
+            WHERE pa.status = 1
+              AND pa.id IN (SELECT DISTINCT parent_id FROM modules WHERE parent_id IS NOT NULL)
+              AND EXISTS (
+                  SELECT 1 FROM modules cm
+                  JOIN permissions cp ON cp.module_id = cm.id AND cp.status = 1 AND cp.code = 'view'
+                  JOIN role_permissions crp ON crp.permission_id = cp.id
+                  JOIN user_roles cur ON cur.role_id = crp.role_id AND cur.user_id = @UserId
+                  WHERE cm.parent_id = pa.id AND cm.status = 1
+              )
+
+            ORDER BY SortOrder, Nombre
             """, new { UserId = userId });
     }
 

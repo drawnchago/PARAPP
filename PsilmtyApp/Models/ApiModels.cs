@@ -36,6 +36,7 @@ namespace PsilmtyApp.Models
     public class ModuloPermiso
     {
         public uint ModuloId { get; set; }
+        public uint? ParentId { get; set; }
         public string Clave { get; set; } = "";
         public string Nombre { get; set; } = "";
         public string? Icono { get; set; }
@@ -311,6 +312,24 @@ namespace PsilmtyApp.Models
         public string Name { get; set; } = "";
         public string? Description { get; set; }
         public bool IsSystem { get; set; }
+    }
+
+    // ── Catálogo de Roles (CRUD) ──────────────────────────────
+    public class RolCatalogoDto
+    {
+        public uint Id { get; set; }
+        public string Name { get; set; } = "";
+        public string? Description { get; set; }
+        public bool IsSystem { get; set; }
+        public bool IsActive { get; set; }
+        public DateTime UpdatedAt { get; set; }
+    }
+
+    public class RolCatalogoForm
+    {
+        public string Name { get; set; } = "";
+        public string? Description { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 
     // ── Grupos ────────────────────────────────────────────────

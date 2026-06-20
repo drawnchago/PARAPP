@@ -1,0 +1,130 @@
+@page "/catalogos/roles"
+@inject ApiService Api
+@inject SessionService Session
+@inject NavigationManager Nav
+
+<div class="module-container">
+    <div class="module-header">
+        <h2>🛡️ Roles</h2>
+        @if (permission?.PuedeCrear == true)
+        {
+            <button class="btn btn-primary" @onclick="OpenCreate">+ Nuevo rol</button>
+        }
+    </div>
+
+    <div class="catalog-toolbar">
+        <input type="search" class="form-control" @bind="query" @bind:event="oninput"
+               placeholder="Buscar por nombre o descripción..." />
+        <button class="btn btn-outline-secondary" @onclick="Load">Buscar</button>
+    </div>
+
+    @if (loading)
+    {
+        <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (!items.Any())
+    {
+        <div class="empty-state"><span class="empty-icon">🛡️</span><p>No hay roles que coincidan.</p></div>
+    }
+    else
+    {
+        <div class="catalog-list">
+            @foreach (var item in items)
+            {
+                <div class="catalog-row @(!item.IsActive ? "inactive" : "")">
+                    <div class="catalog-info">
+                        <strong>
+                            @item.Name
+                            @if (item.IsSystem) { <span class="chip chip-role">Sistema</span> }
+                        </strong>
+                        <small>@(string.IsNullOrWhiteSpace(item.Description) ? "—" : item.Description)</small>
+                    </div>
+                    <span class="chip @(item.IsActive ? "chip-success" : "chip-warning")">
+                        @(item.IsActive ? "Activo" : "Inactivo")
+                    </span>
+                    <div class="item-actions">
+                        @if (permission?.PuedeEditar == true && !item.IsSystem)
+                        {
+                            <button class="btn btn-sm btn-outline-primary" @onclick="() => OpenEdit(item)">Editar</button>
+                        }
+                        @if (permission?.PuedeEliminar == true && item.IsActive && !item.IsSystem)
+                        {
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => Deactivate(item.Id)">Desactivar</button>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (showForm)
+{
+    <div class="modal-overlay" @onclick="CloseForm">
+        <div class="modal-card" @onclick:stopPropagation>
+            <h4>@(editingId.HasValue ? "Editar rol" : "Nuevo rol")</h4>
+            <div class="mb-3">
+                <label class="form-label">Nombre *</label>
+                <input class="form-control" @bind="form.Name" maxlength="80" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Descripción</label>
+                <input class="form-control" @bind="form.Description" maxlength="200" />
+            </div>
+            <div class="form-check form-switch mb-3">
+                <input class="form-check-input" type="checkbox" id="rolActive" @bind="form.IsActive" />
+                <label class="form-check-label" for="rolActive">Activo</label>
+            </div>
+            @if (error != null) { <div class="alert alert-danger py-2">@error</div> }
+            <div class="d-flex gap-2 justify-content-end">
+                <button class="btn btn-secondary" @onclick="CloseForm">Cancelar</button>
+                <button class="btn btn-primary" @onclick="Save" disabled="@saving">@(saving ? "Guardando..." : "Guardar")</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<RolCatalogoDto> items = [];
+    private ModuloPermiso? permission;
+    private RolCatalogoForm form = new();
+    private uint? editingId;
+    private string query = "";
+    private string? error;
+    private bool loading = true, saving, showForm;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+        permission = Session.ObtenerPermiso("roles");
+        if (permission?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
+        await Load();
+    }
+
+    private async Task Load() { loading = true; items = await Api.GetAdminRolesAsync(query); loading = false; }
+
+    private void OpenCreate() { editingId = null; form = new(); error = null; showForm = true; }
+
+    private void OpenEdit(RolCatalogoDto item)
+    {
+        editingId = item.Id;
+        form = new() { Name = item.Name, Description = item.Description, IsActive = item.IsActive };
+        error = null; showForm = true;
+    }
+
+    private void CloseForm() => showForm = false;
+
+    private async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(form.Name)) { error = "El nombre es requerido."; return; }
+        saving = true;
+        var ok = editingId.HasValue
+            ? await Api.UpdateRolAsync(editingId.Value, form) != null
+            : await Api.CreateRolAsync(form) != null;
+        saving = false;
+        if (!ok) { error = "No se pudo guardar. Verifica que el nombre no esté repetido."; return; }
+        showForm = false; await Load();
+    }
+
+    private async Task Deactivate(uint id) { if (await Api.DeactivateRolAsync(id)) await Load(); }
+}

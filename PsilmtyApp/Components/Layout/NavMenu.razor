@@ -19,13 +19,9 @@
                 </NavLink>
             </div>
 
-            @foreach (var m in Session.Session!.Modulos.Where(x => x.PuedeVer && !string.IsNullOrEmpty(x.Ruta)))
+            @foreach (var m in NivelSuperior)
             {
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="@m.Ruta!.TrimStart('/')">
-                        <span class="nav-emoji">@IconoEmoji(m.Clave)</span> @m.Nombre
-                    </NavLink>
-                </div>
+                @RenderNodo(m)
             }
 
             <div class="nav-item px-3 mt-auto">
@@ -46,34 +42,68 @@
 </div>
 
 @code {
+    // Grupos expandidos (por id del módulo padre). Por defecto vacío => todos compactados.
+    private readonly HashSet<uint> expandidos = [];
+
+    // Módulos visibles (sin el "home", que se muestra como enlace fijo de Inicio).
+    private List<ModuloPermiso> Mods =>
+        Session.Session?.Modulos.Where(x => x.PuedeVer && x.Clave != "home").ToList() ?? [];
+
+    // TODOS los hijos (contenedores y hojas) agrupados por su módulo padre.
+    private Dictionary<uint, List<ModuloPermiso>> HijosPorPadre =>
+        Mods.Where(x => x.ParentId != null)
+            .GroupBy(x => x.ParentId!.Value)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+    // Nivel superior: módulos sin padre.
+    private IEnumerable<ModuloPermiso> NivelSuperior => Mods.Where(x => x.ParentId == null);
+
+    // Render recursivo de un nodo: si tiene hijos => grupo colapsable; si no => enlace.
+    private RenderFragment<ModuloPermiso> RenderNodo => modulo =>
+    @<text>
+        @if (HijosPorPadre.TryGetValue(modulo.ModuloId, out var hijos))
+        {
+            var abierto = expandidos.Contains(modulo.ModuloId);
+            <div class="nav-group">
+                <button type="button" class="nav-link nav-group-header"
+                        @onclick="() => ToggleGrupo(modulo.ModuloId)" @onclick:stopPropagation="true">
+                    <span class="nav-emoji">@Ico(modulo.Icono)</span>
+                    <span class="nav-group-title">@modulo.Nombre</span>
+                    <span class="nav-group-caret">@(abierto ? "▾" : "▸")</span>
+                </button>
+                @if (abierto)
+                {
+                    <div class="nav-group-children">
+                        @foreach (var h in hijos)
+                        {
+                            @RenderNodo(h)
+                        }
+                    </div>
+                }
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(modulo.Ruta))
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="@modulo.Ruta!.TrimStart('/')">
+                    <span class="nav-emoji">@Ico(modulo.Icono)</span> @modulo.Nombre
+                </NavLink>
+            </div>
+        }
+    </text>;
+
+    private void ToggleGrupo(uint parentId)
+    {
+        if (!expandidos.Remove(parentId))
+            expandidos.Add(parentId);
+    }
+
+    // El icono proviene de la base de datos; fallback genérico si viniera vacío.
+    private static string Ico(string? icon) => string.IsNullOrEmpty(icon) ? "📦" : icon;
+
     private void Salir()
     {
         Session.Logout();
         Nav.NavigateTo("/login");
     }
-
-    private static string IconoEmoji(string clave) => clave switch
-    {
-        "adoration"     => "🎵",
-        "adoraciones"   => "🎵",
-        "groups"        => "🎸",
-        "adoradores"    => "🎸",
-        "calendar"      => "📅",
-        "eventos"       => "📅",
-        "settings"      => "⚙️",
-        "configuracion" => "⚙️",
-        "home"          => "🏠",
-        "news"          => "📰",
-        "notifications" => "🔔",
-        "donations"     => "💝",
-        "users"         => "👥",
-        "sacraments"    => "⛪",
-        "gallery"       => "🖼️",
-        "intentions"    => "🕯️",
-        "requests"      => "📋",
-        "countries"     => "🌎",
-        "states"        => "🗺️",
-        "neighborhoods" => "🏘️",
-        _               => "📦"
-    };
 }

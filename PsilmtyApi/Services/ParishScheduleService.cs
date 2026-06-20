@@ -18,7 +18,7 @@ public sealed class ParishScheduleService(IDatabaseConnectionFactory connectionF
             SELECT id, day_of_week DayOfWeek, open_time OpenTime, close_time CloseTime,
                    is_closed IsClosed, sort_order SortOrder, notes Notes
             FROM parish_schedules
-            WHERE parish_id=@ParishId AND is_active=1
+            WHERE parish_id=@ParishId AND status=1
             ORDER BY day_of_week,sort_order
             """, new { ParishId = parishId })).AsList();
 
@@ -56,7 +56,7 @@ public sealed class ParishScheduleService(IDatabaseConnectionFactory connectionF
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
         await connection.ExecuteAsync(
-            "UPDATE parish_schedules SET is_active=0,updated_at=UTC_TIMESTAMP(),updated_by=@UserId WHERE parish_id=@ParishId",
+            "UPDATE parish_schedules SET status=0,updated_at=UTC_TIMESTAMP(),updated_by=@UserId WHERE parish_id=@ParishId",
             new { ParishId = parishId, UserId = userId }, transaction);
 
         foreach (var day in request.Days)
@@ -65,10 +65,10 @@ public sealed class ParishScheduleService(IDatabaseConnectionFactory connectionF
             {
                 await connection.ExecuteAsync("""
                     INSERT INTO parish_schedules
-                        (parish_id,day_of_week,is_closed,sort_order,notes,is_active,created_at,created_by)
+                        (parish_id,day_of_week,is_closed,sort_order,notes,status,created_at,created_by)
                     VALUES (@ParishId,@DayOfWeek,1,1,@Notes,1,UTC_TIMESTAMP(),@UserId)
                     ON DUPLICATE KEY UPDATE open_time=NULL,close_time=NULL,is_closed=1,notes=@Notes,
-                        is_active=1,updated_at=UTC_TIMESTAMP(),updated_by=@UserId
+                        status=1,updated_at=UTC_TIMESTAMP(),updated_by=@UserId
                     """, new { ParishId = parishId, day.DayOfWeek, day.Notes, UserId = userId }, transaction);
                 continue;
             }
@@ -78,10 +78,10 @@ public sealed class ParishScheduleService(IDatabaseConnectionFactory connectionF
             {
                 await connection.ExecuteAsync("""
                     INSERT INTO parish_schedules
-                        (parish_id,day_of_week,open_time,close_time,is_closed,sort_order,notes,is_active,created_at,created_by)
+                        (parish_id,day_of_week,open_time,close_time,is_closed,sort_order,notes,status,created_at,created_by)
                     VALUES (@ParishId,@DayOfWeek,@OpenTime,@CloseTime,0,@SortOrder,@Notes,1,UTC_TIMESTAMP(),@UserId)
                     ON DUPLICATE KEY UPDATE open_time=@OpenTime,close_time=@CloseTime,is_closed=0,notes=@Notes,
-                        is_active=1,updated_at=UTC_TIMESTAMP(),updated_by=@UserId
+                        status=1,updated_at=UTC_TIMESTAMP(),updated_by=@UserId
                     """, new
                 {
                     ParishId = parishId,

@@ -56,7 +56,7 @@
                             @foreach (var m in resModulos.Where(m => !accesos.Any(a => a.ModuleId == m.ModuleId)))
                             {
                                 <div class="search-item" @onclick="() => SeleccionarModuloParaAgregar(m)">
-                                    <div class="search-item-avatar">@IconoEmoji(m.Code)</div>
+                                    <div class="search-item-avatar">@Ico(m.Icon)</div>
                                     <div><strong>@m.Name</strong><small class="d-block text-muted">@m.Description</small></div>
                                     <span class="ms-auto text-success">+ Agregar</span>
                                 </div>
@@ -70,7 +70,7 @@
                 {
                     <div class="config-modulo-card">
                         <div class="config-modulo-header">
-                            <span>@IconoEmoji(moduloParaAgregar.Code) @moduloParaAgregar.Name</span>
+                            <span>@Ico(moduloParaAgregar.Icon) @moduloParaAgregar.Name</span>
                             <button class="btn-close-mini" @onclick="() => moduloParaAgregar = null">✕</button>
                         </div>
                         <div class="config-permisos">
@@ -120,7 +120,7 @@
                         @foreach (var a in accesos)
                         {
                             <div class="acceso-row @(a.Vigente ? "" : "expirado")">
-                                <span class="acceso-icon">@IconoEmoji(a.Code)</span>
+                                <span class="acceso-icon">@Ico(a.Icon)</span>
                                 <div class="flex-1">
                                     <strong>@a.Name</strong>
                                     <div class="acceso-perms">
@@ -166,7 +166,7 @@
                         @foreach (var m in resModulosTab)
                         {
                             <div class="search-item" @onclick="() => SeleccionarModuloTab(m)">
-                                <div class="search-item-avatar">@IconoEmoji(m.Code)</div>
+                                <div class="search-item-avatar">@Ico(m.Icon)</div>
                                 <div><strong>@m.Name</strong><small class="d-block text-muted">@m.Description</small></div>
                             </div>
                         }
@@ -177,7 +177,7 @@
             @if (moduloSelTab != null)
             {
                 <div class="modulo-selected-header">
-                    <span class="modulo-icon-lg">@IconoEmoji(moduloSelTab.Code)</span>
+                    <span class="modulo-icon-lg">@Ico(moduloSelTab.Icon)</span>
                     <div><h5 class="mb-0">@moduloSelTab.Name</h5><small class="text-muted">Usuarios con acceso</small></div>
                 </div>
 
@@ -375,12 +375,6 @@
     private static string? FormatF(string? f) =>
         DateTime.TryParse(f, out var d) ? d.ToString("dd/MM/yyyy") : f;
 
-    private static string IconoEmoji(string code) => code switch
-    {
-        "adoration" => "🎵", "groups" => "🎸", "calendar" => "📅",
-        "settings" => "⚙️", "home" => "🏠", "news" => "📰",
-        "notifications" => "🔔", "donations" => "💝", "users" => "👥",
-        "sacraments" => "⛪", "gallery" => "🖼️", "intentions" => "🕯️",
-        "requests" => "📋", "module_assignment" => "🛡️", _ => "📦"
-    };
+    // El icono proviene de la base de datos; fallback genérico si viniera vacío.
+    private static string Ico(string? icon) => string.IsNullOrEmpty(icon) ? "📦" : icon;
 }

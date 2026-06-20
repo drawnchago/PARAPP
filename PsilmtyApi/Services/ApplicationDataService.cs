@@ -19,7 +19,7 @@ public sealed class ApplicationDataService(
             FROM news n
             LEFT JOIN news_categories c ON c.id = n.category_id
             LEFT JOIN users u ON u.id = n.author_id
-            WHERE n.parish_id = @ParishId AND n.is_active = 1
+            WHERE n.parish_id = @ParishId AND n.status = 1
               AND (@Query = '' OR n.title LIKE CONCAT('%', @Query, '%'))
             ORDER BY COALESCE(n.published_at, n.created_at) DESC
             """, new { ParishId = parishId, Query = query });
@@ -49,7 +49,7 @@ public sealed class ApplicationDataService(
             newsId = await repository.ExecuteScalarAsync<uint>("""
                 INSERT INTO news
                     (parish_id, category_id, author_id, title, summary, content, image_url,
-                     is_published, published_at, is_featured, is_active, created_at, created_by)
+                     is_published, published_at, is_featured, status, created_at, created_by)
                 VALUES
                     (@ParishId, @CategoryId, @UserId, @Title, @Summary, @Content, @ImageUrl,
                      @IsPublished, @PublishedAt, @IsFeatured, 1, UTC_TIMESTAMP(), @UserId);
@@ -87,7 +87,7 @@ public sealed class ApplicationDataService(
                    start_datetime StartDatetime, end_datetime EndDatetime, all_day AllDay,
                    type Type, location Location, reminder_minutes ReminderMinutes
             FROM calendar
-            WHERE parish_id=@ParishId AND is_active=1 AND is_visible=1
+            WHERE parish_id=@ParishId AND status=1 AND is_visible=1
               AND (@Type='' OR type=@Type)
             ORDER BY start_datetime
             """, new { ParishId = parishId, Type = type });
@@ -116,7 +116,7 @@ public sealed class ApplicationDataService(
             calendarId = await repository.ExecuteScalarAsync<uint>("""
                 INSERT INTO calendar
                     (parish_id, title, description, color, start_datetime, end_datetime,
-                     all_day, type, location, reminder_minutes, is_visible, is_active, created_at, created_by)
+                     all_day, type, location, reminder_minutes, is_visible, status, created_at, created_by)
                 VALUES
                     (@ParishId, @Title, @Description, @Color, @StartDatetime, @EndDatetime,
                      @AllDay, @Type, @Location, @ReminderMinutes, 1, 1, UTC_TIMESTAMP(), @UserId);

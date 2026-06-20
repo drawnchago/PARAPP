@@ -28,6 +28,7 @@ public sealed class UserSessionResponse
 public sealed class ModulePermissionResponse
 {
     public uint ModuloId { get; set; }
+    public uint? ParentId { get; set; }
     public string Clave { get; set; } = "";
     public string Nombre { get; set; } = "";
     public string? Icono { get; set; }

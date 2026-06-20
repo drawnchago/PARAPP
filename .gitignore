@@ -10,3 +10,6 @@
 
 # Rider
 .idea/
+
+# Claude Code local settings (puede contener secretos)
+.claude/settings.local.json

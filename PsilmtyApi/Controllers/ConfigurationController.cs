@@ -17,7 +17,7 @@ public sealed class ConfigurationController(IApplicationDataService service, IDa
         Ok(await repository.QueryAsync<object>("""
             SELECT id Id, code Codigo, name Nombre, native_name NombreNativo,
                    flag_emoji BanderaEmoji, is_default EsDefault, sort_order Orden
-            FROM languages WHERE is_active=1 ORDER BY sort_order
+            FROM languages WHERE status=1 ORDER BY sort_order
             """));
 
     [AllowAnonymous]
@@ -29,7 +29,7 @@ public sealed class ConfigurationController(IApplicationDataService service, IDa
                    color_surface ColorSuperficie, color_text ColorTexto,
                    color_text_soft ColorTextoSuave, color_accent ColorAcento,
                    color_error ColorError, is_dark EsOscuro, is_default EsDefault
-            FROM themes WHERE is_active=1 ORDER BY sort_order
+            FROM themes WHERE status=1 ORDER BY sort_order
             """));
 
     [Authorize]

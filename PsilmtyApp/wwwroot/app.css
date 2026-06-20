@@ -275,6 +275,29 @@ html, body {
     .schedule-block-row .btn { grid-column: 1 / -1; }
 }
 
+/* ── Endurecimiento responsive (escritorio + móvil) ─ */
+html, body { overflow-x: hidden; }
+img, video, canvas, svg { max-width: 100%; }
+.module-container, .home-container { box-sizing: border-box; width: 100%; }
+/* las tablas (si las hubiera) nunca rompen el ancho */
+table { width: 100%; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+@media (max-width: 480px) {
+    .module-container { padding: .75rem; }
+    .home-container   { padding: 1rem; }
+    .module-header h2 { font-size: 1.2rem; }
+    /* botones de filtros/segmentos no se encogen ilegibles */
+    .filtros-row .form-control, .filtros-row .form-select { min-width: 120px; }
+    /* selector de módulos en permisos: que llene el ancho */
+    .modulos-permisos-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 360px) {
+    .modulos-permisos-grid { grid-template-columns: 1fr; }
+    .lang-grid { grid-template-columns: 1fr; }
+}
+
 /* ── Asignar Módulos ─────────────────────────────── */
 .config-modulo-card { background: rgba(78,52,46,.04); border: 2px solid var(--color-primario); border-radius: 12px; padding: 1rem; margin: .75rem 0; }
 .config-modulo-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-bottom: .75rem; }

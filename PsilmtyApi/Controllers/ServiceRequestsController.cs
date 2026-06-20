@@ -26,7 +26,7 @@ public sealed class ServiceRequestsController(IDatabaseRepository repository) : 
     [HttpGet("tipos")]
     public async Task<IActionResult> GetTypes() =>
         Ok(await repository.QueryAsync<object>(
-            "SELECT id Id,name Name,description Description FROM service_types WHERE is_active=1 ORDER BY name"));
+            "SELECT id Id,name Name,description Description FROM service_types WHERE status=1 ORDER BY name"));
 
     [HttpPost]
     public async Task<IActionResult> Create(Dictionary<string, object?> request)

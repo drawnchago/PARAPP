@@ -28,7 +28,7 @@ public sealed class CalendarController(IApplicationDataService service, IDatabas
     public async Task<IActionResult> Delete(uint id)
     {
         await repository.ExecuteAsync(
-            "UPDATE calendar SET is_active=0, updated_at=UTC_TIMESTAMP(), updated_by=@UserId WHERE id=@Id AND parish_id=@ParishId",
+            "UPDATE calendar SET status=0, updated_at=UTC_TIMESTAMP(), updated_by=@UserId WHERE id=@Id AND parish_id=@ParishId",
             new { Id = id, UserId = User.GetUserId(), ParishId = User.GetParishId() });
         return NoContent();
     }

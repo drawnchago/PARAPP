@@ -256,6 +256,21 @@ namespace PsilmtyApp.Services
         public Task<bool> DeactivateNeighborhoodAsync(uint id) =>
             DeleteAsync($"api/catalogos/admin/colonias/{id}");
 
+        // ── Catálogo de Roles (CRUD) ──────────────────────────
+        public async Task<List<RolCatalogoDto>> GetAdminRolesAsync(string query = "")
+        {
+            SetAuth();
+            return await GetListAsync<RolCatalogoDto>(
+                $"api/catalogos/admin/roles?q={Uri.EscapeDataString(query)}&includeInactive=true");
+        }
+
+        public Task<RolCatalogoDto?> CreateRolAsync(RolCatalogoForm form) =>
+            PostAsync<RolCatalogoDto>("api/catalogos/admin/roles", form);
+        public Task<RolCatalogoDto?> UpdateRolAsync(uint id, RolCatalogoForm form) =>
+            PutAsync<RolCatalogoDto>($"api/catalogos/admin/roles/{id}", form);
+        public Task<bool> DeactivateRolAsync(uint id) =>
+            DeleteAsync($"api/catalogos/admin/roles/{id}");
+
         public async Task<List<ParishScheduleDayDto>?> SaveParishSchedulesAsync(
             uint parishId,
             ParishScheduleRequest request)

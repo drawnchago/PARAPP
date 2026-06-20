@@ -34,6 +34,6 @@ public sealed class AuthController(IAuthService authService, IDatabaseRepository
                    NULL PrimaryColor, NULL SecondaryColor
             FROM parishes p
             LEFT JOIN states s ON s.id=p.state_id
-            WHERE p.is_active = 1 ORDER BY p.name
+            WHERE p.status = 1 ORDER BY p.name
             """));
 }

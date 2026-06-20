@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS parish_schedules (
     is_closed TINYINT(1) NOT NULL DEFAULT 0,
     sort_order TINYINT UNSIGNED NOT NULL DEFAULT 1,
     notes VARCHAR(250) NULL,
-    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    status TINYINT(1) NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by INT UNSIGNED NULL,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -28,5 +28,5 @@ CREATE TABLE IF NOT EXISTS parish_schedules (
             (is_closed = 0 AND open_time IS NOT NULL AND close_time IS NOT NULL AND open_time < close_time)
         ),
     UNIQUE KEY uq_parish_schedule_block (parish_id, day_of_week, sort_order),
-    KEY ix_parish_schedules_parish_day (parish_id, day_of_week, is_active)
+    KEY ix_parish_schedules_parish_day (parish_id, day_of_week, status)
 );
