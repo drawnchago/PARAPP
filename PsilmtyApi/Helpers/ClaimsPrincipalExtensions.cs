@@ -14,4 +14,13 @@ public static class ClaimsPrincipalExtensions
 
     public static bool IsSuperAdmin(this ClaimsPrincipal user) =>
         user.IsInRole(Dictionaries.RoleDictionary.SuperAdmin);
+
+    /// <summary>Etiqueta legible del usuario para los logs (correo, id o 'anónimo').</summary>
+    public static string GetUserLabel(this ClaimsPrincipal? user)
+    {
+        if (user?.Identity?.IsAuthenticated != true) return "anónimo";
+        return user.FindFirstValue(ClaimTypes.Email)
+            ?? user.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? "desconocido";
+    }
 }

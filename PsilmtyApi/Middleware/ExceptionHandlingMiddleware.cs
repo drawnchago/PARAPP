@@ -12,14 +12,17 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
         }
         catch (UnauthorizedAccessException exception)
         {
+            context.Items["__error"] = exception.Message;
             await WriteProblemAsync(context, HttpStatusCode.Unauthorized, exception.Message);
         }
         catch (KeyNotFoundException exception)
         {
+            context.Items["__error"] = exception.Message;
             await WriteProblemAsync(context, HttpStatusCode.NotFound, exception.Message);
         }
         catch (Exception exception)
         {
+            context.Items["__error"] = exception.ToString();
             logger.LogError(exception, "Unhandled API error.");
             await WriteProblemAsync(context, HttpStatusCode.InternalServerError, "An unexpected server error occurred.");
         }

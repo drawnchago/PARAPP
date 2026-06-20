@@ -13,3 +13,7 @@
 
 # Claude Code local settings (puede contener secretos)
 .claude/settings.local.json
+
+# Logs generados por la API
+PsilmtyApi/Log/
+Log/

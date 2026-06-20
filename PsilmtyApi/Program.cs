@@ -42,6 +42,7 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
 
+builder.Services.AddSingleton<IFileLogService, FileLogService>();
 builder.Services.AddSingleton<IDatabaseConnectionFactory, MySqlDatabaseConnectionFactory>();
 builder.Services.AddScoped<IDatabaseRepository, DatabaseRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -53,6 +54,7 @@ builder.Services.AddHostedService<NotificationWorker>();
 
 var app = builder.Build();
 
+app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
 app.UseHttpsRedirection();
