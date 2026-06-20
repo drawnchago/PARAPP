@@ -96,7 +96,7 @@
     protected override async Task OnInitializedAsync()
     {
         if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
-        permission = Session.ObtenerPermiso("roles");
+        permission = Session.GetPermission("roles");
         if (permission?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
         await Load();
     }
@@ -119,12 +119,12 @@
         if (string.IsNullOrWhiteSpace(form.Name)) { error = "El nombre es requerido."; return; }
         saving = true;
         var ok = editingId.HasValue
-            ? await Api.UpdateRolAsync(editingId.Value, form) != null
-            : await Api.CreateRolAsync(form) != null;
+            ? await Api.UpdateRoleAsync(editingId.Value, form) != null
+            : await Api.CreateRoleAsync(form) != null;
         saving = false;
         if (!ok) { error = "No se pudo guardar. Verifica que el nombre no esté repetido."; return; }
         showForm = false; await Load();
     }
 
-    private async Task Deactivate(uint id) { if (await Api.DeactivateRolAsync(id)) await Load(); }
+    private async Task Deactivate(uint id) { if (await Api.DeactivateRoleAsync(id)) await Load(); }
 }

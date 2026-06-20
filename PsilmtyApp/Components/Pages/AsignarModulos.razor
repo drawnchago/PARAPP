@@ -252,7 +252,7 @@
     protected override void OnInitialized()
     {
         if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
-        var permiso = Session.ObtenerPermiso("module_assignment");
+        var permiso = Session.GetPermission("module_assignment");
         // Solo quien puede gestionar (superadmin, padre, admin parroquia, coordinadores)
         if (permiso?.PuedeVer != true && Session.Session?.Usuario.IsSuperAdmin != true
             && Session.Session?.Usuario.IsParishAdmin != true
@@ -266,7 +266,7 @@
     private async Task BuscarUsuarios(ChangeEventArgs e)
     {
         busqUsuario = e.Value?.ToString() ?? "";
-        resUsuarios = busqUsuario.Length >= 2 ? await Api.BuscarUsuariosAsync(busqUsuario) : [];
+        resUsuarios = busqUsuario.Length >= 2 ? await Api.SearchUsersAsync(busqUsuario) : [];
     }
 
     private async Task SeleccionarUsuario(UsuarioDto u)
@@ -286,14 +286,14 @@
     {
         if (usuarioSel is null) return;
         cargandoAccesos = true;
-        accesos = await Api.GetAccesosDeUsuarioAsync(usuarioSel.Id);
+        accesos = await Api.GetUserAccessAsync(usuarioSel.Id);
         cargandoAccesos = false;
     }
 
     private async Task BuscarModulos(ChangeEventArgs e)
     {
         busqModulo = e.Value?.ToString() ?? "";
-        resModulos = busqModulo.Length >= 1 ? await Api.BuscarModulosAsync(busqModulo) : [];
+        resModulos = busqModulo.Length >= 1 ? await Api.SearchModulesAsync(busqModulo) : [];
     }
 
     private void SeleccionarModuloParaAgregar(ModuloBusquedaDto m)
@@ -308,7 +308,7 @@
     {
         if (usuarioSel is null || moduloParaAgregar is null) return;
         guardando = true;
-        var ok = await Api.AsignarModuloConVigenciaAsync(
+        var ok = await Api.AssignModuleWithValidityAsync(
             usuarioSel.Id, moduloParaAgregar.ModuleId,
             new PermisosFlags { View = nuevoView, Create = nuevoCreate, Edit = nuevoEdit, Delete = nuevoDelete },
             conVigencia ? validFrom : null,
@@ -325,7 +325,7 @@
     private async Task Revocar(AccesoUsuarioDto a)
     {
         if (usuarioSel is null) return;
-        if (await Api.RevocarModuloAsync(usuarioSel.Id, a.ModuleId))
+        if (await Api.RevokeModuleAsync(usuarioSel.Id, a.ModuleId))
             await RecargarAccesos();
     }
 
@@ -333,35 +333,35 @@
     private async Task BuscarModulosTab(ChangeEventArgs e)
     {
         busqModuloTab = e.Value?.ToString() ?? "";
-        resModulosTab = busqModuloTab.Length >= 1 ? await Api.BuscarModulosAsync(busqModuloTab) : [];
+        resModulosTab = busqModuloTab.Length >= 1 ? await Api.SearchModulesAsync(busqModuloTab) : [];
     }
 
     private async Task SeleccionarModuloTab(ModuloBusquedaDto m)
     {
         moduloSelTab = m;
         busqModuloTab = ""; resModulosTab = [];
-        usuariosAcceso = await Api.GetUsuariosConAccesoAsync(m.ModuleId);
+        usuariosAcceso = await Api.GetUsersWithAccessAsync(m.ModuleId);
     }
 
     private async Task BuscarUsuariosTab(ChangeEventArgs e)
     {
         busqUsuTab = e.Value?.ToString() ?? "";
-        resUsuTab = busqUsuTab.Length >= 2 ? await Api.BuscarUsuariosAsync(busqUsuTab) : [];
+        resUsuTab = busqUsuTab.Length >= 2 ? await Api.SearchUsersAsync(busqUsuTab) : [];
     }
 
     private async Task AgregarUsuarioAModulo(UsuarioDto u)
     {
         if (moduloSelTab is null) return;
-        await Api.AsignarModuloConVigenciaAsync(u.Id, moduloSelTab.ModuleId,
+        await Api.AssignModuleWithValidityAsync(u.Id, moduloSelTab.ModuleId,
             new PermisosFlags { View = true }, null, null);
         busqUsuTab = ""; resUsuTab = [];
-        usuariosAcceso = await Api.GetUsuariosConAccesoAsync(moduloSelTab.ModuleId);
+        usuariosAcceso = await Api.GetUsersWithAccessAsync(moduloSelTab.ModuleId);
     }
 
     private async Task QuitarUsuarioDeModulo(UsuarioAccesoDto u)
     {
         if (moduloSelTab is null) return;
-        await Api.RevocarModuloAsync(u.Id, moduloSelTab.ModuleId);
+        await Api.RevokeModuleAsync(u.Id, moduloSelTab.ModuleId);
         usuariosAcceso.RemoveAll(x => x.Id == u.Id);
     }
 

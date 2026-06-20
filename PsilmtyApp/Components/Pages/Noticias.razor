@@ -8,7 +8,7 @@
         <h2>📰 Noticias</h2>
         @if (permiso?.PuedeCrear == true)
         {
-            <button class="btn btn-primary" @onclick="AbrirFormulario">+ Nueva</button>
+            <button class="btn btn-primary" @onclick="OpenForm">+ Nueva</button>
         }
     </div>
 
@@ -48,11 +48,11 @@
                             <div class="item-actions">
                                 @if (permiso?.PuedeEditar == true)
                                 {
-                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => AbrirEditar(n)">Editar</button>
+                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => OpenEdit(n)">Editar</button>
                                 }
                                 @if (permiso?.PuedeEliminar == true)
                                 {
-                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => Eliminar(n.Id)">🗑️</button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(n.Id)">🗑️</button>
                                 }
                             </div>
                         </div>
@@ -65,7 +65,7 @@
 
 @if (mostrarFormulario)
 {
-    <div class="modal-overlay" @onclick="CerrarFormulario">
+    <div class="modal-overlay" @onclick="CloseForm">
         <div class="modal-card" @onclick:stopPropagation>
             <h4>@(editandoId.HasValue ? "Modificar noticia" : "Nueva noticia")</h4>
             <div class="mb-3">
@@ -134,8 +134,8 @@
             @if (errorForm != null) { <div class="alert alert-danger py-2">@errorForm</div> }
 
             <div class="d-flex gap-2 justify-content-end">
-                <button class="btn btn-secondary" @onclick="CerrarFormulario">Cancelar</button>
-                <button class="btn btn-primary" @onclick="Guardar" disabled="@guardando">
+                <button class="btn btn-secondary" @onclick="CloseForm">Cancelar</button>
+                <button class="btn btn-primary" @onclick="Save" disabled="@guardando">
                     @(guardando ? "Guardando..." : "Guardar")
                 </button>
             </div>
@@ -155,20 +155,20 @@
     protected override async Task OnInitializedAsync()
     {
         if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
-        permiso = Session.ObtenerPermiso("news");
+        permiso = Session.GetPermission("news");
         if (permiso?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
-        categorias = await Api.GetNoticiasCategoriasAsync();
-        await Cargar();
+        categorias = await Api.GetNewsCategoriesAsync();
+        await Load();
     }
 
-    private async Task Cargar()
+    private async Task Load()
     {
         cargando = true;
-        noticias = await Api.GetNoticiasAsync();
+        noticias = await Api.GetNewsListAsync();
         cargando = false;
     }
 
-    private void AbrirFormulario()
+    private void OpenForm()
     {
         editandoId = null;
         form = new NoticiaForm
@@ -181,7 +181,7 @@
         mostrarFormulario = true;
     }
 
-    private void AbrirEditar(NoticiaDto noticia)
+    private void OpenEdit(NoticiaDto noticia)
     {
         editandoId = noticia.Id;
         form = new NoticiaForm
@@ -201,24 +201,24 @@
         mostrarFormulario = true;
     }
 
-    private void CerrarFormulario() => mostrarFormulario = false;
+    private void CloseForm() => mostrarFormulario = false;
 
-    private async Task Guardar()
+    private async Task Save()
     {
         if (string.IsNullOrWhiteSpace(form.Title)) { errorForm = "El título es requerido."; return; }
         guardando = true;
         var r = editandoId.HasValue
-            ? await Api.ActualizarNoticiaAsync(editandoId.Value, form)
-            : await Api.CrearNoticiaAsync(form);
+            ? await Api.UpdateNewsAsync(editandoId.Value, form)
+            : await Api.CreateNewsAsync(form);
         guardando = false;
         if (r is null) { errorForm = "Error al guardar."; return; }
         mostrarFormulario = false;
-        await Cargar();
+        await Load();
     }
 
-    private async Task Eliminar(uint id)
+    private async Task Delete(uint id)
     {
-        if (await Api.EliminarNoticiaAsync(id)) await Cargar();
+        if (await Api.DeleteNewsAsync(id)) await Load();
     }
 
     private void ActualizarFechaPublicacion(ChangeEventArgs e)

@@ -90,7 +90,7 @@
     protected override async Task OnInitializedAsync()
     {
         if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
-        permission = Session.ObtenerPermiso("countries");
+        permission = Session.GetPermission("countries");
         if (permission?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
         await Load();
     }

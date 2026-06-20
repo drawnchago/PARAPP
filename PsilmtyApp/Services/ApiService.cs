@@ -25,14 +25,14 @@ namespace PsilmtyApp.Services
         }
 
         // ── Registro público (feligrés) ──────────────────────
-        public async Task<List<ParroquiaPublicaDto>> GetParroquiasPublicasAsync()
+        public async Task<List<ParroquiaPublicaDto>> GetPublicParishesAsync()
         {
             try { return await http.GetFromJsonAsync<List<ParroquiaPublicaDto>>("api/auth/parroquias", JsonOpts) ?? []; }
             catch { return []; }
         }
 
         /// <summary>Registra un feligrés. Devuelve (sesión, errorMensaje).</summary>
-        public async Task<(LoginResponse? sesion, string? error)> RegistrarAsync(RegistroRequest req)
+        public async Task<(LoginResponse? sesion, string? error)> RegisterAsync(RegistroRequest req)
         {
             var response = await http.PostAsJsonAsync("api/auth/registro", req);
             if (response.IsSuccessStatusCode)
@@ -47,27 +47,27 @@ namespace PsilmtyApp.Services
         }
 
         // ── Adoraciones ──────────────────────────────────────
-        public async Task<List<AdoracionDto>> GetAdoracionesAsync()
+        public async Task<List<AdoracionDto>> GetAdorationsAsync()
         {
             SetAuth();
             var r = await http.GetFromJsonAsync<List<AdoracionDto>>("api/adoraciones", JsonOpts);
             return r ?? [];
         }
 
-        public async Task<AdoracionDto?> GetAdoracionAsync(uint id)
+        public async Task<AdoracionDto?> GetAdorationAsync(uint id)
         {
             SetAuth();
             return await http.GetFromJsonAsync<AdoracionDto>($"api/adoraciones/{id}", JsonOpts);
         }
 
-        public async Task<AdoracionDto?> CrearAdoracionAsync(CrearAdoracionRequest req)
+        public async Task<AdoracionDto?> CreateAdorationAsync(CrearAdoracionRequest req)
         {
             SetAuth();
             var r = await http.PostAsJsonAsync("api/adoraciones", req);
             return r.IsSuccessStatusCode ? await r.Content.ReadFromJsonAsync<AdoracionDto>(JsonOpts) : null;
         }
 
-        public async Task<bool> EliminarAdoracionAsync(uint id)
+        public async Task<bool> DeleteAdorationAsync(uint id)
         {
             SetAuth();
             var r = await http.DeleteAsync($"api/adoraciones/{id}");
@@ -75,21 +75,21 @@ namespace PsilmtyApp.Services
         }
 
         // ── Adoradores ───────────────────────────────────────
-        public async Task<List<AdoradorDto>> GetAdoradoresAsync(bool soloActivos = false)
+        public async Task<List<AdoradorDto>> GetAdorersAsync(bool soloActivos = false)
         {
             SetAuth();
             var r = await http.GetFromJsonAsync<List<AdoradorDto>>($"api/adoradores?soloActivos={soloActivos}", JsonOpts);
             return r ?? [];
         }
 
-        public async Task<AdoradorDto?> CrearAdoradorAsync(CrearAdoradorRequest req)
+        public async Task<AdoradorDto?> CreateAdorerAsync(CrearAdoradorRequest req)
         {
             SetAuth();
             var r = await http.PostAsJsonAsync("api/adoradores", req);
             return r.IsSuccessStatusCode ? await r.Content.ReadFromJsonAsync<AdoradorDto>(JsonOpts) : null;
         }
 
-        public async Task<bool> EliminarAdoradorAsync(uint id)
+        public async Task<bool> DeleteAdorerAsync(uint id)
         {
             SetAuth();
             var r = await http.DeleteAsync($"api/adoradores/{id}");
@@ -97,21 +97,21 @@ namespace PsilmtyApp.Services
         }
 
         // ── Eventos ──────────────────────────────────────────
-        public async Task<List<EventoDto>> GetEventosAsync()
+        public async Task<List<EventoDto>> GetEventsAsync()
         {
             SetAuth();
             var r = await http.GetFromJsonAsync<List<EventoDto>>("api/eventos", JsonOpts);
             return r ?? [];
         }
 
-        public async Task<EventoDto?> CrearEventoAsync(CrearEventoRequest req)
+        public async Task<EventoDto?> CreateEventAsync(CrearEventoRequest req)
         {
             SetAuth();
             var r = await http.PostAsJsonAsync("api/eventos", req);
             return r.IsSuccessStatusCode ? await r.Content.ReadFromJsonAsync<EventoDto>(JsonOpts) : null;
         }
 
-        public async Task<bool> EliminarEventoAsync(uint id)
+        public async Task<bool> DeleteEventAsync(uint id)
         {
             SetAuth();
             var r = await http.DeleteAsync($"api/eventos/{id}");
@@ -119,26 +119,26 @@ namespace PsilmtyApp.Services
         }
 
         // ── Configuración ────────────────────────────────────
-        public async Task<List<LenguajeDto>> GetLenguajesAsync()
+        public async Task<List<LenguajeDto>> GetLanguagesAsync()
         {
             var r = await http.GetFromJsonAsync<List<LenguajeDto>>("api/configuracion/lenguajes", JsonOpts);
             return r ?? [];
         }
 
-        public async Task<List<TemaDto>> GetTemasAsync()
+        public async Task<List<TemaDto>> GetThemesAsync()
         {
             var r = await http.GetFromJsonAsync<List<TemaDto>>("api/configuracion/temas", JsonOpts);
             return r ?? [];
         }
 
-        public async Task<PreferenciasDto?> GetPreferenciasAsync()
+        public async Task<PreferenciasDto?> GetPreferencesAsync()
         {
             SetAuth();
             try { return await http.GetFromJsonAsync<PreferenciasDto>("api/configuracion/preferencias", JsonOpts); }
             catch { return null; }
         }
 
-        public async Task<PreferenciasDto?> ActualizarPreferenciasAsync(ActualizarPreferenciasRequest req)
+        public async Task<PreferenciasDto?> UpdatePreferencesAsync(ActualizarPreferenciasRequest req)
         {
             SetAuth();
             var r = await http.PutAsJsonAsync("api/configuracion/preferencias", req);
@@ -146,28 +146,28 @@ namespace PsilmtyApp.Services
         }
 
         // ── Parroquia ────────────────────────────────────────
-        public async Task<ParroquiaDto?> GetMiParroquiaAsync()
+        public async Task<ParroquiaDto?> GetMyParishAsync()
         {
             SetAuth();
             try { return await http.GetFromJsonAsync<ParroquiaDto>("api/parroquias/mia", JsonOpts); }
             catch { return null; }
         }
 
-        public async Task<ParroquiaDto?> ActualizarMiParroquiaAsync(object body)
+        public async Task<ParroquiaDto?> UpdateMyParishAsync(object body)
         {
             SetAuth();
             var r = await http.PutAsJsonAsync("api/parroquias/mia", body);
             return r.IsSuccessStatusCode ? await r.Content.ReadFromJsonAsync<ParroquiaDto>(JsonOpts) : null;
         }
 
-        public async Task<List<ParroquiaDto>> GetParroquiasAsync()
+        public async Task<List<ParroquiaDto>> GetParishesAsync()
         {
             SetAuth();
             try { return await http.GetFromJsonAsync<List<ParroquiaDto>>("api/parroquias", JsonOpts) ?? []; }
             catch { return []; }
         }
 
-        public async Task<ParroquiaDto?> ActualizarParroquiaAsync(uint id, object body)
+        public async Task<ParroquiaDto?> UpdateParishAsync(uint id, object body)
         {
             SetAuth();
             var r = await http.PutAsJsonAsync($"api/parroquias/{id}", body);
@@ -264,11 +264,11 @@ namespace PsilmtyApp.Services
                 $"api/catalogos/admin/roles?q={Uri.EscapeDataString(query)}&includeInactive=true");
         }
 
-        public Task<RolCatalogoDto?> CreateRolAsync(RolCatalogoForm form) =>
+        public Task<RolCatalogoDto?> CreateRoleAsync(RolCatalogoForm form) =>
             PostAsync<RolCatalogoDto>("api/catalogos/admin/roles", form);
-        public Task<RolCatalogoDto?> UpdateRolAsync(uint id, RolCatalogoForm form) =>
+        public Task<RolCatalogoDto?> UpdateRoleAsync(uint id, RolCatalogoForm form) =>
             PutAsync<RolCatalogoDto>($"api/catalogos/admin/roles/{id}", form);
-        public Task<bool> DeactivateRolAsync(uint id) =>
+        public Task<bool> DeactivateRoleAsync(uint id) =>
             DeleteAsync($"api/catalogos/admin/roles/{id}");
 
         public async Task<List<ParishScheduleDayDto>?> SaveParishSchedulesAsync(
@@ -283,7 +283,7 @@ namespace PsilmtyApp.Services
         }
 
         /// <summary>Sube un logo de parroquia. Devuelve (urlLogo, error).</summary>
-        public async Task<(string? url, string? error)> SubirLogoParroquiaAsync(Stream archivo, string nombre, uint? parishId)
+        public async Task<(string? url, string? error)> UploadParishLogoAsync(Stream archivo, string nombre, uint? parishId)
         {
             SetAuth();
             using var content = new MultipartFormDataContent();
@@ -306,14 +306,14 @@ namespace PsilmtyApp.Services
         }
 
         // ── Usuarios ─────────────────────────────────────────
-        public async Task<List<UsuarioDto>> BuscarUsuariosAsync(string q)
+        public async Task<List<UsuarioDto>> SearchUsersAsync(string q)
         {
             SetAuth();
             var r = await http.GetFromJsonAsync<List<UsuarioDto>>($"api/usuarios/buscar?q={Uri.EscapeDataString(q)}", JsonOpts);
             return r ?? [];
         }
 
-        public async Task<List<UsuarioDto>> GetUsuariosAsync(string q = "", string parishId = "", string groupId = "")
+        public async Task<List<UsuarioDto>> GetUsersAsync(string q = "", string parishId = "", string groupId = "")
         {
             SetAuth();
             var url = $"api/usuarios?q={Uri.EscapeDataString(q)}&parishId={parishId}&groupId={groupId}";
@@ -321,21 +321,21 @@ namespace PsilmtyApp.Services
             return r ?? [];
         }
 
-        public async Task<UsuarioDto?> GetUsuarioPorIdAsync(uint id)
+        public async Task<UsuarioDto?> GetUserByIdAsync(uint id)
         {
             SetAuth();
             return await http.GetFromJsonAsync<UsuarioDto>($"api/usuarios/{id}", JsonOpts);
         }
 
         // ── Perfil propio + contraseña ───────────────────────
-        public async Task<PerfilDto?> GetMiPerfilAsync()
+        public async Task<PerfilDto?> GetMyProfileAsync()
         {
             SetAuth();
             try { return await http.GetFromJsonAsync<PerfilDto>("api/usuarios/perfil", JsonOpts); }
             catch { return null; }
         }
 
-        public async Task<PerfilDto?> ActualizarMiPerfilAsync(ActualizarPerfilRequest req)
+        public async Task<PerfilDto?> UpdateMyProfileAsync(ActualizarPerfilRequest req)
         {
             SetAuth();
             var r = await http.PutAsJsonAsync("api/usuarios/perfil", req);
@@ -343,7 +343,7 @@ namespace PsilmtyApp.Services
         }
 
         /// <summary>Cambia la contraseña propia. Devuelve null si OK, o el mensaje de error.</summary>
-        public async Task<string?> CambiarMiPasswordAsync(CambiarPasswordRequest req)
+        public async Task<string?> ChangeMyPasswordAsync(CambiarPasswordRequest req)
         {
             SetAuth();
             var r = await http.PutAsJsonAsync("api/usuarios/password", req);
@@ -356,14 +356,14 @@ namespace PsilmtyApp.Services
             catch { return "No se pudo cambiar la contraseña."; }
         }
 
-        public async Task<UsuarioDto?> CrearUsuarioAsync(CrearUsuarioForm form)
+        public async Task<UsuarioDto?> CreateUserAsync(CrearUsuarioForm form)
         {
             SetAuth();
             var r = await http.PostAsJsonAsync("api/usuarios", form);
             return r.IsSuccessStatusCode ? await r.Content.ReadFromJsonAsync<UsuarioDto>(JsonOpts) : null;
         }
 
-        public async Task<UsuarioDto?> ActualizarUsuarioAsync(uint id, CrearUsuarioForm form)
+        public async Task<UsuarioDto?> UpdateUserAsync(uint id, CrearUsuarioForm form)
         {
             SetAuth();
             var r = await http.PutAsJsonAsync($"api/usuarios/{id}", form);
@@ -371,14 +371,14 @@ namespace PsilmtyApp.Services
         }
 
         // ── Permisos ─────────────────────────────────────────
-        public async Task<List<ModuloPermisoDetalle>> GetModulosByUsuarioAsync(uint userId)
+        public async Task<List<ModuloPermisoDetalle>> GetModulesByUserAsync(uint userId)
         {
             SetAuth();
             var r = await http.GetFromJsonAsync<List<ModuloPermisoDetalle>>($"api/permisos/usuarios/{userId}/modulos", JsonOpts);
             return r ?? [];
         }
 
-        public async Task<List<ModuloInfo>> GetTodosModulosAsync()
+        public async Task<List<ModuloInfo>> GetAllModulesAsync()
         {
             SetAuth();
             var r = await http.GetFromJsonAsync<List<ModuloInfo>>("api/permisos/roles", JsonOpts);
@@ -397,14 +397,14 @@ namespace PsilmtyApp.Services
             return r ?? [];
         }
 
-        public async Task<List<UsuarioDto>> GetUsuariosByModuloAsync(uint moduleId)
+        public async Task<List<UsuarioDto>> GetUsersByModuleAsync(uint moduleId)
         {
             SetAuth();
             var r = await http.GetFromJsonAsync<List<UsuarioDto>>($"api/permisos/modulos/{moduleId}/usuarios", JsonOpts);
             return r ?? [];
         }
 
-        public async Task<bool> AsignarModulosAUsuarioAsync(uint userId, List<uint> moduleIds, PermisosFlags flags)
+        public async Task<bool> AssignModulesToUserAsync(uint userId, List<uint> moduleIds, PermisosFlags flags)
         {
             SetAuth();
             var r = await http.PostAsJsonAsync($"api/permisos/usuarios/{userId}/modulos", new
@@ -416,21 +416,21 @@ namespace PsilmtyApp.Services
         }
 
         // ── Asignación de módulos con vigencia ───────────────
-        public async Task<List<ModuloBusquedaDto>> BuscarModulosAsync(string q)
+        public async Task<List<ModuloBusquedaDto>> SearchModulesAsync(string q)
         {
             SetAuth();
             var r = await http.GetFromJsonAsync<List<ModuloBusquedaDto>>($"api/permisos/modulos/buscar?q={Uri.EscapeDataString(q)}", JsonOpts);
             return r ?? [];
         }
 
-        public async Task<List<AccesoUsuarioDto>> GetAccesosDeUsuarioAsync(uint userId)
+        public async Task<List<AccesoUsuarioDto>> GetUserAccessAsync(uint userId)
         {
             SetAuth();
             var r = await http.GetFromJsonAsync<List<AccesoUsuarioDto>>($"api/permisos/usuarios/{userId}/accesos", JsonOpts);
             return r ?? [];
         }
 
-        public async Task<bool> AsignarModuloConVigenciaAsync(uint userId, uint moduleId, PermisosFlags flags, string? validFrom, string? validTo)
+        public async Task<bool> AssignModuleWithValidityAsync(uint userId, uint moduleId, PermisosFlags flags, string? validFrom, string? validTo)
         {
             SetAuth();
             var r = await http.PostAsJsonAsync($"api/permisos/usuarios/{userId}/accesos", new
@@ -443,14 +443,14 @@ namespace PsilmtyApp.Services
             return r.IsSuccessStatusCode;
         }
 
-        public async Task<bool> RevocarModuloAsync(uint userId, uint moduleId)
+        public async Task<bool> RevokeModuleAsync(uint userId, uint moduleId)
         {
             SetAuth();
             var r = await http.DeleteAsync($"api/permisos/usuarios/{userId}/accesos/{moduleId}");
             return r.IsSuccessStatusCode;
         }
 
-        public async Task<List<UsuarioAccesoDto>> GetUsuariosConAccesoAsync(uint moduleId)
+        public async Task<List<UsuarioAccesoDto>> GetUsersWithAccessAsync(uint moduleId)
         {
             SetAuth();
             var r = await http.GetFromJsonAsync<List<UsuarioAccesoDto>>($"api/permisos/modulos/{moduleId}/accesos", JsonOpts);
@@ -458,35 +458,35 @@ namespace PsilmtyApp.Services
         }
 
         // ── Grupos ───────────────────────────────────────────
-        public async Task<List<GrupoDto>> GetGruposAsync()
+        public async Task<List<GrupoDto>> GetGroupsAsync()
         {
             SetAuth();
             var r = await http.GetFromJsonAsync<List<GrupoDto>>("api/grupos", JsonOpts);
             return r ?? [];
         }
 
-        public async Task<List<GrupoMiembroDto>> GetMiembrosGrupoAsync(uint groupId)
+        public async Task<List<GrupoMiembroDto>> GetGroupMembersAsync(uint groupId)
         {
             SetAuth();
             var r = await http.GetFromJsonAsync<List<GrupoMiembroDto>>($"api/grupos/{groupId}/miembros", JsonOpts);
             return r ?? [];
         }
 
-        public async Task<GrupoDto?> CrearGrupoAsync(object body)
+        public async Task<GrupoDto?> CreateGroupAsync(object body)
         {
             SetAuth();
             var r = await http.PostAsJsonAsync("api/grupos", body);
             return r.IsSuccessStatusCode ? await r.Content.ReadFromJsonAsync<GrupoDto>(JsonOpts) : null;
         }
 
-        public async Task<bool> AgregarMiembroGrupoAsync(uint groupId, uint userId, string roleInGroup)
+        public async Task<bool> AddGroupMemberAsync(uint groupId, uint userId, string roleInGroup)
         {
             SetAuth();
             var r = await http.PostAsJsonAsync($"api/grupos/{groupId}/miembros", new { userId, roleInGroup });
             return r.IsSuccessStatusCode;
         }
 
-        public async Task<bool> QuitarMiembroGrupoAsync(uint groupId, uint userId)
+        public async Task<bool> RemoveGroupMemberAsync(uint groupId, uint userId)
         {
             SetAuth();
             var r = await http.DeleteAsync($"api/grupos/{groupId}/miembros/{userId}");
@@ -523,55 +523,62 @@ namespace PsilmtyApp.Services
         }
 
         // ── Noticias ─────────────────────────────────────────
-        public Task<List<NoticiaDto>> GetNoticiasAsync(string q = "")
+        public Task<List<NoticiaDto>> GetNewsListAsync(string q = "")
             => GetListAsync<NoticiaDto>($"api/noticias?q={Uri.EscapeDataString(q)}");
-        public Task<List<CategoriaDto>> GetNoticiasCategoriasAsync()
+        public Task<List<CategoriaDto>> GetNewsCategoriesAsync()
             => GetListAsync<CategoriaDto>("api/noticias/categorias");
-        public Task<NoticiaDto?> CrearNoticiaAsync(NoticiaForm f) => PostAsync<NoticiaDto>("api/noticias", f);
-        public Task<NoticiaDto?> ActualizarNoticiaAsync(uint id, NoticiaForm f) => PutAsync<NoticiaDto>($"api/noticias/{id}", f);
-        public Task<bool> EliminarNoticiaAsync(uint id) => DeleteAsync($"api/noticias/{id}");
+        public Task<NoticiaDto?> CreateNewsAsync(NoticiaForm f) => PostAsync<NoticiaDto>("api/noticias", f);
+        public Task<NoticiaDto?> UpdateNewsAsync(uint id, NoticiaForm f) => PutAsync<NoticiaDto>($"api/noticias/{id}", f);
+        public Task<bool> DeleteNewsAsync(uint id) => DeleteAsync($"api/noticias/{id}");
 
         // ── Calendario ───────────────────────────────────────
-        public Task<List<CalendarioDto>> GetCalendarioAsync(string type = "")
+        public Task<List<CalendarioDto>> GetCalendarAsync(string type = "")
             => GetListAsync<CalendarioDto>($"api/calendario?type={type}");
-        public Task<CalendarioDto?> CrearCalendarioAsync(object f) => PostAsync<CalendarioDto>("api/calendario", f);
-        public Task<CalendarioDto?> ActualizarCalendarioAsync(uint id, object f) => PutAsync<CalendarioDto>($"api/calendario/{id}", f);
-        public Task<bool> EliminarCalendarioAsync(uint id) => DeleteAsync($"api/calendario/{id}");
+        public Task<CalendarioDto?> CreateCalendarAsync(object f) => PostAsync<CalendarioDto>("api/calendario", f);
+        public Task<CalendarioDto?> UpdateCalendarAsync(uint id, object f) => PutAsync<CalendarioDto>($"api/calendario/{id}", f);
+        public Task<bool> DeleteCalendarAsync(uint id) => DeleteAsync($"api/calendario/{id}");
 
         // ── Sacramentos ──────────────────────────────────────
-        public Task<List<SacramentoDto>> GetSacramentosAsync()
+        public Task<List<SacramentoDto>> GetSacramentsAsync()
             => GetListAsync<SacramentoDto>("api/sacramentos");
-        public Task<List<CategoriaDto>> GetSacramentoTiposAsync()
+        public Task<List<CategoriaDto>> GetSacramentTypesAsync()
             => GetListAsync<CategoriaDto>("api/sacramentos/tipos");
-        public Task<SacramentoDto?> CrearSacramentoAsync(object f) => PostAsync<SacramentoDto>("api/sacramentos", f);
-        public Task<bool> EliminarSacramentoAsync(uint id) => DeleteAsync($"api/sacramentos/{id}");
+        public Task<SacramentoDto?> CreateSacramentAsync(object f) => PostAsync<SacramentoDto>("api/sacramentos", f);
+        public Task<bool> DeleteSacramentAsync(uint id) => DeleteAsync($"api/sacramentos/{id}");
 
         // ── Donaciones ───────────────────────────────────────
-        public Task<List<DonacionDto>> GetDonacionesAsync()
+        public Task<List<DonacionDto>> GetDonationsAsync()
             => GetListAsync<DonacionDto>("api/donaciones");
-        public async Task<DonacionResumen?> GetDonacionesResumenAsync()
+        public async Task<DonacionResumen?> GetDonationSummaryAsync()
         {
             SetAuth();
             try { return await http.GetFromJsonAsync<DonacionResumen>("api/donaciones/resumen", JsonOpts); }
             catch { return null; }
         }
-        public Task<DonacionDto?> CrearDonacionAsync(object f) => PostAsync<DonacionDto>("api/donaciones", f);
-        public Task<bool> EliminarDonacionAsync(uint id) => DeleteAsync($"api/donaciones/{id}");
+        public Task<DonacionDto?> CreateDonationAsync(object f) => PostAsync<DonacionDto>("api/donaciones", f);
+        public Task<bool> DeleteDonationAsync(uint id) => DeleteAsync($"api/donaciones/{id}");
 
         // ── Intenciones de Misa ──────────────────────────────
-        public Task<List<IntencionDto>> GetIntencionesAsync()
+        public Task<List<IntencionDto>> GetIntentionsAsync()
             => GetListAsync<IntencionDto>("api/intenciones");
-        public Task<IntencionDto?> CrearIntencionAsync(object f) => PostAsync<IntencionDto>("api/intenciones", f);
-        public Task<IntencionDto?> ActualizarIntencionAsync(uint id, object f) => PutAsync<IntencionDto>($"api/intenciones/{id}", f);
-        public Task<bool> EliminarIntencionAsync(uint id) => DeleteAsync($"api/intenciones/{id}");
+        public Task<IntencionDto?> CreateIntentionAsync(object f) => PostAsync<IntencionDto>("api/intenciones", f);
+        public Task<IntencionDto?> UpdateIntentionAsync(uint id, object f) => PutAsync<IntencionDto>($"api/intenciones/{id}", f);
+        public Task<bool> DeleteIntentionAsync(uint id) => DeleteAsync($"api/intenciones/{id}");
 
         // ── Solicitudes ──────────────────────────────────────
-        public Task<List<SolicitudDto>> GetSolicitudesAsync()
+        public Task<List<SolicitudDto>> GetRequestsAsync()
             => GetListAsync<SolicitudDto>("api/solicitudes");
-        public Task<List<CategoriaDto>> GetSolicitudTiposAsync()
+        public Task<List<CategoriaDto>> GetRequestTypesAsync()
             => GetListAsync<CategoriaDto>("api/solicitudes/tipos");
-        public Task<SolicitudDto?> CrearSolicitudAsync(object f) => PostAsync<SolicitudDto>("api/solicitudes", f);
-        public Task<SolicitudDto?> ActualizarSolicitudAsync(uint id, object f) => PutAsync<SolicitudDto>($"api/solicitudes/{id}", f);
-        public Task<bool> EliminarSolicitudAsync(uint id) => DeleteAsync($"api/solicitudes/{id}");
+        public Task<SolicitudDto?> CreateRequestAsync(object f) => PostAsync<SolicitudDto>("api/solicitudes", f);
+        public Task<SolicitudDto?> UpdateRequestAsync(uint id, object f) => PutAsync<SolicitudDto>($"api/solicitudes/{id}", f);
+        public Task<bool> DeleteRequestAsync(uint id) => DeleteAsync($"api/solicitudes/{id}");
+
+        // ── Oraciones ────────────────────────────────────────
+        public Task<List<OracionDto>> GetPrayersAsync()
+        {
+            SetAuth();
+            return GetListAsync<OracionDto>("api/oraciones");
+        }
     }
 }

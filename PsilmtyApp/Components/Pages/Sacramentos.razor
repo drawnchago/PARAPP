@@ -8,7 +8,7 @@
         <h2>⛪ Sacramentos</h2>
         @if (permiso?.PuedeCrear == true)
         {
-            <button class="btn btn-primary" @onclick="AbrirFormulario">+ Registrar</button>
+            <button class="btn btn-primary" @onclick="OpenForm">+ Registrar</button>
         }
     </div>
 
@@ -49,7 +49,7 @@
                     {
                         <div class="item-footer">
                             <span></span>
-                            <button class="btn btn-sm btn-outline-danger" @onclick="() => Eliminar(s.Id)">Eliminar</button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(s.Id)">Eliminar</button>
                         </div>
                     }
                 </div>
@@ -60,19 +60,19 @@
 
 @if (mostrarFormulario)
 {
-    <div class="modal-overlay" @onclick="CerrarFormulario">
+    <div class="modal-overlay" @onclick="CloseForm">
         <div class="modal-card" @onclick:stopPropagation>
             <h4>Registrar Sacramento</h4>
             <div class="mb-3">
                 <label class="form-label">Buscar feligrés *</label>
                 <input class="form-control" placeholder="Nombre o correo..."
-                       value="@busquedaUsuario" @oninput="BuscarUsuarios" />
+                       value="@busquedaUsuario" @oninput="SearchUsers" />
                 @if (resultados.Any())
                 {
                     <div class="search-dropdown">
                         @foreach (var u in resultados)
                         {
-                            <div class="search-item" @onclick="() => SeleccionarUsuario(u)">
+                            <div class="search-item" @onclick="() => SelectUser(u)">
                                 <div class="search-item-avatar">@u.Nombre[0]@u.Apellido[0]</div>
                                 <div><strong>@u.Nombre @u.Apellido</strong><small class="d-block text-muted">@u.Correo</small></div>
                             </div>
@@ -108,8 +108,8 @@
             @if (errorForm != null) { <div class="alert alert-danger py-2">@errorForm</div> }
 
             <div class="d-flex gap-2 justify-content-end">
-                <button class="btn btn-secondary" @onclick="CerrarFormulario">Cancelar</button>
-                <button class="btn btn-primary" @onclick="Guardar" disabled="@guardando">
+                <button class="btn btn-secondary" @onclick="CloseForm">Cancelar</button>
+                <button class="btn btn-primary" @onclick="Save" disabled="@guardando">
                     @(guardando ? "Guardando..." : "Guardar")
                 </button>
             </div>
@@ -130,42 +130,42 @@
     protected override async Task OnInitializedAsync()
     {
         if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
-        permiso = Session.ObtenerPermiso("sacraments");
+        permiso = Session.GetPermission("sacraments");
         if (permiso?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
-        tipos = await Api.GetSacramentoTiposAsync();
-        await Cargar();
+        tipos = await Api.GetSacramentTypesAsync();
+        await Load();
     }
 
-    private async Task Cargar()
+    private async Task Load()
     {
         cargando = true;
-        sacramentos = await Api.GetSacramentosAsync();
+        sacramentos = await Api.GetSacramentsAsync();
         cargando = false;
     }
 
-    private void AbrirFormulario() { form = new(); busquedaUsuario = ""; errorForm = null; mostrarFormulario = true; }
-    private void CerrarFormulario() => mostrarFormulario = false;
+    private void OpenForm() { form = new(); busquedaUsuario = ""; errorForm = null; mostrarFormulario = true; }
+    private void CloseForm() => mostrarFormulario = false;
 
-    private async Task BuscarUsuarios(ChangeEventArgs e)
+    private async Task SearchUsers(ChangeEventArgs e)
     {
         var q = e.Value?.ToString() ?? "";
         busquedaUsuario = q;
-        resultados = q.Length >= 2 ? await Api.BuscarUsuariosAsync(q) : [];
+        resultados = q.Length >= 2 ? await Api.SearchUsersAsync(q) : [];
     }
 
-    private void SeleccionarUsuario(UsuarioDto u)
+    private void SelectUser(UsuarioDto u)
     {
         form.UserId = u.Id;
         busquedaUsuario = $"{u.Nombre} {u.Apellido}";
         resultados = [];
     }
 
-    private async Task Guardar()
+    private async Task Save()
     {
         if (form.UserId == 0) { errorForm = "Selecciona un feligrés."; return; }
         if (form.TypeId == 0) { errorForm = "Selecciona el tipo de sacramento."; return; }
         guardando = true;
-        var r = await Api.CrearSacramentoAsync(new
+        var r = await Api.CreateSacramentAsync(new
         {
             userId = form.UserId, typeId = form.TypeId,
             date = form.Date.ToString("yyyy-MM-dd"),
@@ -175,12 +175,12 @@
         guardando = false;
         if (r is null) { errorForm = "Error al guardar."; return; }
         mostrarFormulario = false;
-        await Cargar();
+        await Load();
     }
 
-    private async Task Eliminar(uint id)
+    private async Task Delete(uint id)
     {
-        if (await Api.EliminarSacramentoAsync(id)) await Cargar();
+        if (await Api.DeleteSacramentAsync(id)) await Load();
     }
 
     private static string FormatFecha(string fecha) =>

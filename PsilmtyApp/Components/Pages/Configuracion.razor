@@ -121,7 +121,7 @@
                     <textarea class="form-control" rows="2" @bind="parroquia.Description"></textarea>
                 </div>
 
-                <button class="btn btn-primary w-100" @onclick="GuardarParroquia" disabled="@guardandoParroquia">
+                <button class="btn btn-primary w-100" @onclick="SaveParish" disabled="@guardandoParroquia">
                     @(guardandoParroquia ? "Guardando..." : "Guardar datos de la parroquia")
                 </button>
                 @if (parroquiaGuardada) { <div class="text-success text-center mt-2">✓ Datos guardados</div> }
@@ -180,7 +180,7 @@
             </div>
 
             @if (errorHorarios != null) { <div class="alert alert-danger py-2 mt-3">@errorHorarios</div> }
-            <button class="btn btn-primary w-100 mt-3" @onclick="GuardarHorarios" disabled="@guardandoHorarios">
+            <button class="btn btn-primary w-100 mt-3" @onclick="SaveSchedules" disabled="@guardandoHorarios">
                 @(guardandoHorarios ? "Guardando horarios..." : "Guardar horarios")
             </button>
             @if (horariosGuardados) { <div class="text-success text-center mt-2">✓ Horarios guardados</div> }
@@ -252,15 +252,15 @@
                 {
                     <ToggleRow Label="Notificaciones del sistema para todos los usuarios"
                                Value="@prefs.NotifPushActivas"
-                               OnChange="v => { prefs.NotifPushActivas = v; Guardar(); }" />
+                               OnChange="v => { prefs.NotifPushActivas = v; SavePreferences(); }" />
                     <small class="text-muted">Control exclusivo del superadministrador.</small>
                 }
                 else
                 {
-                    <ToggleRow Label="Permitir notificaciones" Value="@prefs.NotifPushActivas" OnChange="v => { prefs.NotifPushActivas = v; Guardar(); }" />
-                    <ToggleRow Label="Calendario y eventos" Value="@prefs.NotifEventos" OnChange="v => { prefs.NotifEventos = v; Guardar(); }" />
-                    <ToggleRow Label="Noticias" Value="@prefs.NotifNoticias" OnChange="v => { prefs.NotifNoticias = v; Guardar(); }" />
-                    <ToggleRow Label="Recordatorios" Value="@prefs.NotifRecordatorios" OnChange="v => { prefs.NotifRecordatorios = v; Guardar(); }" />
+                    <ToggleRow Label="Permitir notificaciones" Value="@prefs.NotifPushActivas" OnChange="v => { prefs.NotifPushActivas = v; SavePreferences(); }" />
+                    <ToggleRow Label="Calendario y eventos" Value="@prefs.NotifEventos" OnChange="v => { prefs.NotifEventos = v; SavePreferences(); }" />
+                    <ToggleRow Label="Noticias" Value="@prefs.NotifNoticias" OnChange="v => { prefs.NotifNoticias = v; SavePreferences(); }" />
+                    <ToggleRow Label="Recordatorios" Value="@prefs.NotifRecordatorios" OnChange="v => { prefs.NotifRecordatorios = v; SavePreferences(); }" />
                 }
             </div>
         </div>
@@ -283,9 +283,9 @@
                 <label class="form-label">Primer día de la semana</label>
                 <div class="btn-group w-100">
                     <button class="btn @(prefs.CalendarioPrimerDia == 0 ? "btn-primary" : "btn-outline-secondary")"
-                            @onclick="() => { prefs.CalendarioPrimerDia = 0; Guardar(); }">Domingo</button>
+                            @onclick="() => { prefs.CalendarioPrimerDia = 0; SavePreferences(); }">Domingo</button>
                     <button class="btn @(prefs.CalendarioPrimerDia == 1 ? "btn-primary" : "btn-outline-secondary")"
-                            @onclick="() => { prefs.CalendarioPrimerDia = 1; Guardar(); }">Lunes</button>
+                            @onclick="() => { prefs.CalendarioPrimerDia = 1; SavePreferences(); }">Lunes</button>
                 </div>
             </div>
         </div>
@@ -301,14 +301,14 @@
                     {
                         <button class="font-btn @(prefs.TamanoFuente == fs.Item1 ? "selected" : "")"
                                 style="font-size:@fs.Item3"
-                                @onclick="() => { prefs.TamanoFuente = fs.Item1; Guardar(); }">
+                                @onclick="() => { prefs.TamanoFuente = fs.Item1; SavePreferences(); }">
                             @fs.Item2
                         </button>
                     }
                 </div>
             </div>
             <ToggleRow Label="Alto contraste" Value="@prefs.AltoContraste"
-                       OnChange="v => { prefs.AltoContraste = v; Guardar(); }" />
+                       OnChange="v => { prefs.AltoContraste = v; SavePreferences(); }" />
         </div>
 
         <!-- MIS DATOS (todos los usuarios) -->
@@ -355,7 +355,7 @@
                             <input class="form-control" @bind="perfil.ZipCode" readonly />
                         </div>
                     </div>
-                    <button class="btn btn-primary w-100" @onclick="GuardarPerfil" disabled="@guardandoPerfil">
+                    <button class="btn btn-primary w-100" @onclick="SaveProfile" disabled="@guardandoPerfil">
                         @(guardandoPerfil ? "Guardando..." : "Guardar mis datos")
                     </button>
                     @if (perfilGuardado) { <div class="text-success text-center mt-2">✓ Datos actualizados</div> }
@@ -380,7 +380,7 @@
                     </div>
                     @if (errorPass != null) { <div class="alert alert-danger py-2">@errorPass</div> }
                     @if (passCambiada) { <div class="alert alert-success py-2">✓ Contraseña actualizada</div> }
-                    <button class="btn btn-primary w-100" @onclick="CambiarPassword" disabled="@guardandoPass">
+                    <button class="btn btn-primary w-100" @onclick="ChangePassword" disabled="@guardandoPass">
                         @(guardandoPass ? "Guardando..." : "Cambiar contraseña")
                     </button>
                 </div>
@@ -444,7 +444,7 @@
             await file.OpenReadStream(2 * 1024 * 1024).CopyToAsync(ms);
             ms.Position = 0;
 
-            var (url, error) = await Api.SubirLogoParroquiaAsync(
+            var (url, error) = await Api.UploadParishLogoAsync(
                 ms, file.Name, esSuperAdmin ? parroquia.Id : null);
 
             if (url != null)
@@ -469,28 +469,28 @@
 
         if (esSuperAdmin)
         {
-            parroquias = await Api.GetParroquiasAsync();
+            parroquias = await Api.GetParishesAsync();
             parroquia = parroquias.FirstOrDefault();
             parroquiaSelId = parroquia?.Id ?? 0;
         }
         else if (puedeEditarParroquia)
         {
-            parroquia = await Api.GetMiParroquiaAsync();
+            parroquia = await Api.GetMyParishAsync();
         }
 
         if (parroquia is not null)
-            await CargarHorarios(parroquia.Id);
+            await LoadSchedules(parroquia.Id);
 
-        perfil = await Api.GetMiPerfilAsync();
+        perfil = await Api.GetMyProfileAsync();
 
-        await Cargar();
+        await Load();
     }
 
-    private async Task GuardarPerfil()
+    private async Task SaveProfile()
     {
         if (perfil is null) return;
         guardandoPerfil = true;
-        var actualizado = await Api.ActualizarMiPerfilAsync(new ActualizarPerfilRequest
+        var actualizado = await Api.UpdateMyProfileAsync(new ActualizarPerfilRequest
         {
             FirstName   = perfil.Nombre,
             LastName    = perfil.Apellido,
@@ -513,7 +513,7 @@
         }
     }
 
-    private async Task CambiarPassword()
+    private async Task ChangePassword()
     {
         errorPass = null; passCambiada = false;
 
@@ -522,7 +522,7 @@
         if (passNueva != passConfirma) { errorPass = "Las contraseñas no coinciden."; return; }
 
         guardandoPass = true; StateHasChanged();
-        var err = await Api.CambiarMiPasswordAsync(new CambiarPasswordRequest
+        var err = await Api.ChangeMyPasswordAsync(new CambiarPasswordRequest
         {
             CurrentPassword = passActual,
             NewPassword = passNueva
@@ -543,11 +543,11 @@
         {
             parroquiaSelId = id;
             parroquia = parroquias.FirstOrDefault(p => p.Id == id);
-            await CargarHorarios(id);
+            await LoadSchedules(id);
         }
     }
 
-    private async Task CargarHorarios(uint parishId)
+    private async Task LoadSchedules(uint parishId)
     {
         horarios = await Api.GetParishSchedulesAsync(parishId);
         if (horarios.Count == 0)
@@ -584,7 +584,7 @@
     private static void QuitarBloque(ParishScheduleDayDto day, ParishScheduleBlockDto block) =>
         day.Blocks.Remove(block);
 
-    private async Task GuardarHorarios()
+    private async Task SaveSchedules()
     {
         if (parroquia is null) return;
         errorHorarios = null;
@@ -629,7 +629,7 @@
             parroquia.SecondaryColor ?? "#2D1B18");
     }
 
-    private async Task GuardarParroquia()
+    private async Task SaveParish()
     {
         if (parroquia is null) return;
         guardandoParroquia = true;
@@ -655,8 +655,8 @@
 
         // superadmin guarda por id; admin de parroquia guarda la suya
         var actualizada = esSuperAdmin
-            ? await Api.ActualizarParroquiaAsync(parroquia.Id, body)
-            : await Api.ActualizarMiParroquiaAsync(body);
+            ? await Api.UpdateParishAsync(parroquia.Id, body)
+            : await Api.UpdateMyParishAsync(body);
 
         guardandoParroquia = false;
         if (actualizada != null)
@@ -684,13 +684,13 @@
         }
     }
 
-    private async Task Cargar()
+    private async Task Load()
     {
         cargando = true;
         var tasks = Task.WhenAll(
-            Api.GetLenguajesAsync().ContinueWith(t => lenguajes = t.Result),
-            Api.GetTemasAsync().ContinueWith(t => temas = t.Result),
-            Api.GetPreferenciasAsync().ContinueWith(t => prefs = t.Result)
+            Api.GetLanguagesAsync().ContinueWith(t => lenguajes = t.Result),
+            Api.GetThemesAsync().ContinueWith(t => temas = t.Result),
+            Api.GetPreferencesAsync().ContinueWith(t => prefs = t.Result)
         );
         await tasks;
         cargando = false;
@@ -700,24 +700,24 @@
     {
         if (prefs is null) return;
         prefs.LenguajeId = id;
-        await GuardarAsync(new ActualizarPreferenciasRequest { LenguajeId = id });
+        await SaveAsync(new ActualizarPreferenciasRequest { LenguajeId = id });
     }
 
     private async Task CambiarTema(TemaDto tema)
     {
         if (prefs is null) return;
         prefs.TemaId = tema.Id;
-        await GuardarAsync(new ActualizarPreferenciasRequest { TemaId = tema.Id });
+        await SaveAsync(new ActualizarPreferenciasRequest { TemaId = tema.Id });
         await JS.InvokeVoidAsync("aplicarTema",
             tema.ColorPrimario, tema.ColorSecundario, tema.ColorFondo,
             tema.ColorSuperficie, tema.ColorTexto, tema.ColorTextoSuave,
             tema.ColorAcento, tema.ColorError);
     }
 
-    private async void Guardar()
+    private async void SavePreferences()
     {
         if (prefs is null) return;
-        await GuardarAsync(new ActualizarPreferenciasRequest
+        await SaveAsync(new ActualizarPreferenciasRequest
         {
             LenguajeId        = prefs.LenguajeId,
             TemaId            = prefs.TemaId,
@@ -739,12 +739,12 @@
     {
         if (prefs is null) return;
         prefs.CalendarioVista = e.Value?.ToString() ?? "mes";
-        Guardar();
+        SavePreferences();
     }
 
-    private async Task GuardarAsync(ActualizarPreferenciasRequest req)
+    private async Task SaveAsync(ActualizarPreferenciasRequest req)
     {
-        await Api.ActualizarPreferenciasAsync(req);
+        await Api.UpdatePreferencesAsync(req);
         savedOk = true;
         StateHasChanged();
         await Task.Delay(2500);

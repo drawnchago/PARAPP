@@ -74,7 +74,7 @@
     protected override async Task OnInitializedAsync()
     {
         if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
-        permission = Session.ObtenerPermiso("states");
+        permission = Session.GetPermission("states");
         if (permission?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
         countries = await Api.GetAdminCountriesAsync();
         await Load();

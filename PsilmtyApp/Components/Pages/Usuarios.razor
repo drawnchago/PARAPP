@@ -8,7 +8,7 @@
         <h2>👥 Usuarios</h2>
         @if (permiso?.PuedeCrear == true)
         {
-            <button class="btn btn-primary" @onclick="AbrirFormulario">+ Nuevo</button>
+            <button class="btn btn-primary" @onclick="OpenForm">+ Nuevo</button>
         }
     </div>
 
@@ -19,7 +19,7 @@
                @oninput="OnFiltroQChange" />
         @if (Session.Session?.Usuario.IsSuperAdmin == true)
         {
-            <select class="form-select" @bind="filtroParroquia" @bind:after="Filtrar">
+            <select class="form-select" @bind="filtroParroquia" @bind:after="Filter">
                 <option value="">Todas las parroquias</option>
                 @foreach (var p in parroquias)
                 {
@@ -27,7 +27,7 @@
                 }
             </select>
         }
-        <select class="form-select" @bind="filtroGrupo" @bind:after="Filtrar">
+        <select class="form-select" @bind="filtroGrupo" @bind:after="Filter">
             <option value="">Todos los grupos</option>
             @foreach (var g in grupos)
             {
@@ -78,7 +78,7 @@
                     <div class="usuario-actions">
                         @if (permiso?.PuedeEditar == true)
                         {
-                            <button class="btn btn-sm btn-outline-primary" @onclick="() => AbrirEditar(u)">✏️</button>
+                            <button class="btn btn-sm btn-outline-primary" @onclick="() => OpenEdit(u)">✏️</button>
                         }
                         <button class="btn btn-sm btn-outline-secondary" @onclick="() => VerPermisos(u.Id)">🔑</button>
                     </div>
@@ -91,7 +91,7 @@
 <!-- Modal Crear/Editar -->
 @if (mostrarFormulario)
 {
-    <div class="modal-overlay" @onclick="CerrarFormulario">
+    <div class="modal-overlay" @onclick="CloseForm">
         <div class="modal-card" @onclick:stopPropagation>
             <h4>@(editando != null ? "Editar Usuario" : "Nuevo Usuario")</h4>
 
@@ -156,8 +156,8 @@
             @if (errorForm != null) { <div class="alert alert-danger py-2">@errorForm</div> }
 
             <div class="d-flex gap-2 justify-content-end">
-                <button class="btn btn-secondary" @onclick="CerrarFormulario">Cancelar</button>
-                <button class="btn btn-primary" @onclick="Guardar" disabled="@guardando">
+                <button class="btn btn-secondary" @onclick="CloseForm">Cancelar</button>
+                <button class="btn btn-primary" @onclick="Save" disabled="@guardando">
                     @(guardando ? "Guardando..." : "Guardar")
                 </button>
             </div>
@@ -184,33 +184,33 @@
     protected override async Task OnInitializedAsync()
     {
         if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
-        permiso = Session.ObtenerPermiso("users");
+        permiso = Session.GetPermission("users");
         if (permiso?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
-        await Task.WhenAll(Cargar(), CargarFiltros());
+        await Task.WhenAll(Load(), LoadFilters());
     }
 
-    private async Task Cargar()
+    private async Task Load()
     {
         cargando = true;
-        usuarios = await Api.GetUsuariosAsync(filtroQ, filtroParroquia, filtroGrupo);
+        usuarios = await Api.GetUsersAsync(filtroQ, filtroParroquia, filtroGrupo);
         cargando = false;
     }
 
-    private async Task CargarFiltros()
+    private async Task LoadFilters()
     {
-        grupos = await Api.GetGruposAsync();
+        grupos = await Api.GetGroupsAsync();
         roles  = await Api.GetRolesAsync();
     }
 
     private async Task OnFiltroQChange(ChangeEventArgs e)
     {
         filtroQ = e.Value?.ToString() ?? "";
-        await Filtrar();
+        await Filter();
     }
 
-    private async Task Filtrar() => await Cargar();
+    private async Task Filter() => await Load();
 
-    private void AbrirFormulario()
+    private void OpenForm()
     {
         editando = null;
         form = new CrearUsuarioForm { RoleName = "parishioner" };
@@ -218,7 +218,7 @@
         mostrarFormulario = true;
     }
 
-    private void AbrirEditar(UsuarioDto u)
+    private void OpenEdit(UsuarioDto u)
     {
         editando = u;
         form = new CrearUsuarioForm
@@ -240,9 +240,9 @@
         mostrarFormulario = true;
     }
 
-    private void CerrarFormulario() => mostrarFormulario = false;
+    private void CloseForm() => mostrarFormulario = false;
 
-    private async Task Guardar()
+    private async Task Save()
     {
         if (string.IsNullOrWhiteSpace(form.FirstName) || string.IsNullOrWhiteSpace(form.LastName))
         { errorForm = "Nombre y apellido son requeridos."; return; }
@@ -256,14 +256,14 @@
         guardando = true;
         bool ok;
         if (editando is null)
-            ok = await Api.CrearUsuarioAsync(form) != null;
+            ok = await Api.CreateUserAsync(form) != null;
         else
-            ok = await Api.ActualizarUsuarioAsync(editando.Id, form) != null;
+            ok = await Api.UpdateUserAsync(editando.Id, form) != null;
 
         guardando = false;
         if (!ok) { errorForm = "Error al guardar. Verifica los datos."; return; }
         mostrarFormulario = false;
-        await Cargar();
+        await Load();
     }
 
     private void VerPermisos(uint id) => Nav.NavigateTo($"/permisos?userId={id}");

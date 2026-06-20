@@ -109,7 +109,7 @@
     protected override async Task OnInitializedAsync()
     {
         if(!Session.IsAuthenticated){Nav.NavigateTo("/login");return;}
-        permission=Session.ObtenerPermiso("neighborhoods");
+        permission=Session.GetPermission("neighborhoods");
         if(permission?.PuedeVer!=true){Nav.NavigateTo("/");return;}
         countries=await Api.GetAdminCountriesAsync();
         countryFilter=countries.FirstOrDefault(item=>item.Code=="MEX")?.Id;

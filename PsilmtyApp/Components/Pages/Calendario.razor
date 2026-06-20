@@ -8,18 +8,18 @@
         <h2>📅 Calendario</h2>
         @if (permiso?.PuedeCrear == true)
         {
-            <button class="btn btn-primary" @onclick="AbrirFormulario">+ Evento</button>
+            <button class="btn btn-primary" @onclick="OpenForm">+ Evento</button>
         }
     </div>
 
     <!-- Filtro por tipo -->
     <div class="cal-filtros mb-3">
-        <button class="cal-filtro @(filtroTipo == "" ? "active" : "")" @onclick='() => Filtrar("")'>Todos</button>
-        <button class="cal-filtro @(filtroTipo == "mass" ? "active" : "")" @onclick='() => Filtrar("mass")'>⛪ Misas</button>
-        <button class="cal-filtro @(filtroTipo == "event" ? "active" : "")" @onclick='() => Filtrar("event")'>🎉 Eventos</button>
-        <button class="cal-filtro @(filtroTipo == "retreat" ? "active" : "")" @onclick='() => Filtrar("retreat")'>🏔️ Retiros</button>
-        <button class="cal-filtro @(filtroTipo == "catechesis" ? "active" : "")" @onclick='() => Filtrar("catechesis")'>📖 Catequesis</button>
-        <button class="cal-filtro @(filtroTipo == "meeting" ? "active" : "")" @onclick='() => Filtrar("meeting")'>👥 Reuniones</button>
+        <button class="cal-filtro @(filtroTipo == "" ? "active" : "")" @onclick='() => Filter("")'>Todos</button>
+        <button class="cal-filtro @(filtroTipo == "mass" ? "active" : "")" @onclick='() => Filter("mass")'>⛪ Misas</button>
+        <button class="cal-filtro @(filtroTipo == "event" ? "active" : "")" @onclick='() => Filter("event")'>🎉 Eventos</button>
+        <button class="cal-filtro @(filtroTipo == "retreat" ? "active" : "")" @onclick='() => Filter("retreat")'>🏔️ Retiros</button>
+        <button class="cal-filtro @(filtroTipo == "catechesis" ? "active" : "")" @onclick='() => Filter("catechesis")'>📖 Catequesis</button>
+        <button class="cal-filtro @(filtroTipo == "meeting" ? "active" : "")" @onclick='() => Filter("meeting")'>👥 Reuniones</button>
     </div>
 
     @if (cargando)
@@ -56,11 +56,11 @@
                             <div class="item-actions">
                                 @if (permiso?.PuedeEditar == true)
                                 {
-                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => AbrirEditar(e)">Editar</button>
+                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => OpenEdit(e)">Editar</button>
                                 }
                                 @if (permiso?.PuedeEliminar == true)
                                 {
-                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => Eliminar(e.Id)">×</button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(e.Id)">×</button>
                                 }
                             </div>
                         </div>
@@ -73,7 +73,7 @@
 
 @if (mostrarFormulario)
 {
-    <div class="modal-overlay" @onclick="CerrarFormulario">
+    <div class="modal-overlay" @onclick="CloseForm">
         <div class="modal-card" @onclick:stopPropagation>
             <h4>@(editandoId.HasValue ? "Modificar evento de calendario" : "Nuevo evento de calendario")</h4>
             <div class="mb-3">
@@ -147,8 +147,8 @@
             @if (errorForm != null) { <div class="alert alert-danger py-2">@errorForm</div> }
 
             <div class="d-flex gap-2 justify-content-end">
-                <button class="btn btn-secondary" @onclick="CerrarFormulario">Cancelar</button>
-                <button class="btn btn-primary" @onclick="Guardar" disabled="@guardando">
+                <button class="btn btn-secondary" @onclick="CloseForm">Cancelar</button>
+                <button class="btn btn-primary" @onclick="Save" disabled="@guardando">
                     @(guardando ? "Guardando..." : "Guardar")
                 </button>
             </div>
@@ -168,25 +168,25 @@
     protected override async Task OnInitializedAsync()
     {
         if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
-        permiso = Session.ObtenerPermiso("calendar");
+        permiso = Session.GetPermission("calendar");
         if (permiso?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
-        await Cargar();
+        await Load();
     }
 
-    private async Task Cargar()
+    private async Task Load()
     {
         cargando = true;
-        entradas = await Api.GetCalendarioAsync(filtroTipo);
+        entradas = await Api.GetCalendarAsync(filtroTipo);
         cargando = false;
     }
 
-    private async Task Filtrar(string tipo)
+    private async Task Filter(string tipo)
     {
         filtroTipo = tipo;
-        await Cargar();
+        await Load();
     }
 
-    private void AbrirFormulario()
+    private void OpenForm()
     {
         editandoId = null;
         form = new CalendarioForm
@@ -200,7 +200,7 @@
         mostrarFormulario = true;
     }
 
-    private void AbrirEditar(CalendarioDto entrada)
+    private void OpenEdit(CalendarioDto entrada)
     {
         editandoId = entrada.Id;
         form = new CalendarioForm
@@ -220,9 +220,9 @@
         mostrarFormulario = true;
     }
 
-    private void CerrarFormulario() => mostrarFormulario = false;
+    private void CloseForm() => mostrarFormulario = false;
 
-    private async Task Guardar()
+    private async Task Save()
     {
         if (string.IsNullOrWhiteSpace(form.Title)) { errorForm = "El título es requerido."; return; }
         guardando = true;
@@ -236,17 +236,17 @@
             sendNotification = form.SendNotification
         };
         var r = editandoId.HasValue
-            ? await Api.ActualizarCalendarioAsync(editandoId.Value, payload)
-            : await Api.CrearCalendarioAsync(payload);
+            ? await Api.UpdateCalendarAsync(editandoId.Value, payload)
+            : await Api.CreateCalendarAsync(payload);
         guardando = false;
         if (r is null) { errorForm = "Error al guardar."; return; }
         mostrarFormulario = false;
-        await Cargar();
+        await Load();
     }
 
-    private async Task Eliminar(uint id)
+    private async Task Delete(uint id)
     {
-        if (await Api.EliminarCalendarioAsync(id)) await Cargar();
+        if (await Api.DeleteCalendarAsync(id)) await Load();
     }
 
     private static string FechaDia(string dt) =>

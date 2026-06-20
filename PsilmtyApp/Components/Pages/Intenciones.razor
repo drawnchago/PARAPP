@@ -8,7 +8,7 @@
         <h2>🕯️ Intenciones de Misa</h2>
         @if (permiso?.PuedeCrear == true)
         {
-            <button class="btn btn-primary" @onclick="AbrirFormulario">+ Nueva</button>
+            <button class="btn btn-primary" @onclick="OpenForm">+ Nueva</button>
         }
     </div>
 
@@ -41,7 +41,7 @@
                         {
                             <select class="form-select form-select-sm w-auto"
                                     value="@i.Status"
-                                    @onchange="e => CambiarEstado(i, e.Value?.ToString())">
+                                    @onchange="e => ChangeStatus(i, e.Value?.ToString())">
                                 <option value="pending">Pendiente</option>
                                 <option value="scheduled">Programada</option>
                                 <option value="celebrated">Celebrada</option>
@@ -57,7 +57,7 @@
 
 @if (mostrarFormulario)
 {
-    <div class="modal-overlay" @onclick="CerrarFormulario">
+    <div class="modal-overlay" @onclick="CloseForm">
         <div class="modal-card" @onclick:stopPropagation>
             <h4>Nueva Intención</h4>
             <div class="mb-3">
@@ -90,8 +90,8 @@
             @if (errorForm != null) { <div class="alert alert-danger py-2">@errorForm</div> }
 
             <div class="d-flex gap-2 justify-content-end">
-                <button class="btn btn-secondary" @onclick="CerrarFormulario">Cancelar</button>
-                <button class="btn btn-primary" @onclick="Guardar" disabled="@guardando">
+                <button class="btn btn-secondary" @onclick="CloseForm">Cancelar</button>
+                <button class="btn btn-primary" @onclick="Save" disabled="@guardando">
                     @(guardando ? "Guardando..." : "Guardar")
                 </button>
             </div>
@@ -109,26 +109,26 @@
     protected override async Task OnInitializedAsync()
     {
         if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
-        permiso = Session.ObtenerPermiso("intentions");
+        permiso = Session.GetPermission("intentions");
         if (permiso?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
-        await Cargar();
+        await Load();
     }
 
-    private async Task Cargar()
+    private async Task Load()
     {
         cargando = true;
-        intenciones = await Api.GetIntencionesAsync();
+        intenciones = await Api.GetIntentionsAsync();
         cargando = false;
     }
 
-    private void AbrirFormulario() { form = new(); errorForm = null; mostrarFormulario = true; }
-    private void CerrarFormulario() => mostrarFormulario = false;
+    private void OpenForm() { form = new(); errorForm = null; mostrarFormulario = true; }
+    private void CloseForm() => mostrarFormulario = false;
 
-    private async Task Guardar()
+    private async Task Save()
     {
         if (string.IsNullOrWhiteSpace(form.Intention)) { errorForm = "La intención es requerida."; return; }
         guardando = true;
-        var r = await Api.CrearIntencionAsync(new
+        var r = await Api.CreateIntentionAsync(new
         {
             intention = form.Intention, type = form.Type,
             massDate = form.MassDate?.ToString("yyyy-MM-dd"), donation = form.Donation
@@ -136,14 +136,14 @@
         guardando = false;
         if (r is null) { errorForm = "Error al guardar."; return; }
         mostrarFormulario = false;
-        await Cargar();
+        await Load();
     }
 
-    private async Task CambiarEstado(IntencionDto i, string? estado)
+    private async Task ChangeStatus(IntencionDto i, string? estado)
     {
         if (estado is null) return;
-        await Api.ActualizarIntencionAsync(i.Id, new { status = estado });
-        await Cargar();
+        await Api.UpdateIntentionAsync(i.Id, new { status = estado });
+        await Load();
     }
 
     private static string FormatFecha(string? f) =>

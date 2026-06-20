@@ -8,7 +8,7 @@
         <h2>🎸 Grupos</h2>
         @if (permiso?.PuedeCrear == true)
         {
-            <button class="btn btn-primary" @onclick="AbrirFormulario">+ Nuevo</button>
+            <button class="btn btn-primary" @onclick="OpenForm">+ Nuevo</button>
         }
     </div>
 
@@ -45,7 +45,7 @@
 <!-- Modal nuevo grupo -->
 @if (mostrarFormulario)
 {
-    <div class="modal-overlay" @onclick="CerrarFormulario">
+    <div class="modal-overlay" @onclick="CloseForm">
         <div class="modal-card" @onclick:stopPropagation>
             <h4>Nuevo Grupo</h4>
             <div class="mb-3">
@@ -60,8 +60,8 @@
             @if (errorForm != null) { <div class="alert alert-danger py-2">@errorForm</div> }
 
             <div class="d-flex gap-2 justify-content-end">
-                <button class="btn btn-secondary" @onclick="CerrarFormulario">Cancelar</button>
-                <button class="btn btn-primary" @onclick="Guardar" disabled="@guardando">
+                <button class="btn btn-secondary" @onclick="CloseForm">Cancelar</button>
+                <button class="btn btn-primary" @onclick="Save" disabled="@guardando">
                     @(guardando ? "Guardando..." : "Guardar")
                 </button>
             </div>
@@ -144,30 +144,30 @@
     protected override async Task OnInitializedAsync()
     {
         if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
-        permiso = Session.ObtenerPermiso("groups");
+        permiso = Session.GetPermission("groups");
         if (permiso?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
-        await Cargar();
+        await Load();
     }
 
-    private async Task Cargar()
+    private async Task Load()
     {
         cargando = true;
-        grupos = await Api.GetGruposAsync();
+        grupos = await Api.GetGroupsAsync();
         cargando = false;
     }
 
-    private void AbrirFormulario() { nuevoNombre = ""; nuevaDescripcion = ""; errorForm = null; mostrarFormulario = true; }
-    private void CerrarFormulario() => mostrarFormulario = false;
+    private void OpenForm() { nuevoNombre = ""; nuevaDescripcion = ""; errorForm = null; mostrarFormulario = true; }
+    private void CloseForm() => mostrarFormulario = false;
 
-    private async Task Guardar()
+    private async Task Save()
     {
         if (string.IsNullOrWhiteSpace(nuevoNombre)) { errorForm = "El nombre es requerido."; return; }
         guardando = true;
-        var r = await Api.CrearGrupoAsync(new { name = nuevoNombre, description = nuevaDescripcion });
+        var r = await Api.CreateGroupAsync(new { name = nuevoNombre, description = nuevaDescripcion });
         guardando = false;
         if (r is null) { errorForm = "Error al guardar."; return; }
         mostrarFormulario = false;
-        await Cargar();
+        await Load();
     }
 
     private async Task VerMiembros(GrupoDto g)
@@ -176,30 +176,30 @@
         busqueda = "";
         resultados = [];
         mostrarMiembros = true;
-        miembros = await Api.GetMiembrosGrupoAsync(g.Id);
+        miembros = await Api.GetGroupMembersAsync(g.Id);
     }
 
     private async Task BuscarUsuarios(ChangeEventArgs e)
     {
         var q = e.Value?.ToString() ?? "";
         busqueda = q;
-        resultados = q.Length >= 2 ? await Api.BuscarUsuariosAsync(q) : [];
+        resultados = q.Length >= 2 ? await Api.SearchUsersAsync(q) : [];
     }
 
     private async Task AgregarMiembro(UsuarioDto u)
     {
         if (grupoSel is null) return;
-        await Api.AgregarMiembroGrupoAsync(grupoSel.Id, u.Id, "member");
+        await Api.AddGroupMemberAsync(grupoSel.Id, u.Id, "member");
         resultados = [];
         busqueda = "";
-        miembros = await Api.GetMiembrosGrupoAsync(grupoSel.Id);
+        miembros = await Api.GetGroupMembersAsync(grupoSel.Id);
     }
 
     private async Task QuitarMiembro(GrupoMiembroDto m)
     {
         if (grupoSel is null) return;
-        await Api.QuitarMiembroGrupoAsync(grupoSel.Id, m.UserId);
-        miembros = await Api.GetMiembrosGrupoAsync(grupoSel.Id);
+        await Api.RemoveGroupMemberAsync(grupoSel.Id, m.UserId);
+        miembros = await Api.GetGroupMembersAsync(grupoSel.Id);
     }
 
     private static string RolNombre(string r) => r switch

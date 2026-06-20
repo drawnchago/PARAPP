@@ -8,7 +8,7 @@
         <h2>💝 Donaciones</h2>
         @if (permiso?.PuedeCrear == true)
         {
-            <button class="btn btn-primary" @onclick="AbrirFormulario">+ Registrar</button>
+            <button class="btn btn-primary" @onclick="OpenForm">+ Registrar</button>
         }
     </div>
 
@@ -60,7 +60,7 @@
                     </div>
                     @if (permiso?.PuedeEliminar == true)
                     {
-                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Eliminar(d.Id)">×</button>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(d.Id)">×</button>
                     }
                 </div>
             }
@@ -70,7 +70,7 @@
 
 @if (mostrarFormulario)
 {
-    <div class="modal-overlay" @onclick="CerrarFormulario">
+    <div class="modal-overlay" @onclick="CloseForm">
         <div class="modal-card" @onclick:stopPropagation>
             <h4>Registrar Donación</h4>
             <div class="row mb-3">
@@ -109,8 +109,8 @@
             @if (errorForm != null) { <div class="alert alert-danger py-2">@errorForm</div> }
 
             <div class="d-flex gap-2 justify-content-end">
-                <button class="btn btn-secondary" @onclick="CerrarFormulario">Cancelar</button>
-                <button class="btn btn-primary" @onclick="Guardar" disabled="@guardando">
+                <button class="btn btn-secondary" @onclick="CloseForm">Cancelar</button>
+                <button class="btn btn-primary" @onclick="Save" disabled="@guardando">
                     @(guardando ? "Guardando..." : "Guardar")
                 </button>
             </div>
@@ -129,27 +129,27 @@
     protected override async Task OnInitializedAsync()
     {
         if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
-        permiso = Session.ObtenerPermiso("donations");
+        permiso = Session.GetPermission("donations");
         if (permiso?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
-        await Cargar();
+        await Load();
     }
 
-    private async Task Cargar()
+    private async Task Load()
     {
         cargando = true;
-        donaciones = await Api.GetDonacionesAsync();
-        resumen = await Api.GetDonacionesResumenAsync();
+        donaciones = await Api.GetDonationsAsync();
+        resumen = await Api.GetDonationSummaryAsync();
         cargando = false;
     }
 
-    private void AbrirFormulario() { form = new(); errorForm = null; mostrarFormulario = true; }
-    private void CerrarFormulario() => mostrarFormulario = false;
+    private void OpenForm() { form = new(); errorForm = null; mostrarFormulario = true; }
+    private void CloseForm() => mostrarFormulario = false;
 
-    private async Task Guardar()
+    private async Task Save()
     {
         if (form.Amount <= 0) { errorForm = "El monto debe ser mayor a cero."; return; }
         guardando = true;
-        var r = await Api.CrearDonacionAsync(new
+        var r = await Api.CreateDonationAsync(new
         {
             amount = form.Amount, type = form.Type,
             concept = form.Concept, paymentMethod = form.PaymentMethod,
@@ -158,12 +158,12 @@
         guardando = false;
         if (r is null) { errorForm = "Error al guardar."; return; }
         mostrarFormulario = false;
-        await Cargar();
+        await Load();
     }
 
-    private async Task Eliminar(uint id)
+    private async Task Delete(uint id)
     {
-        if (await Api.EliminarDonacionAsync(id)) await Cargar();
+        if (await Api.DeleteDonationAsync(id)) await Load();
     }
 
     private static string FormatFecha(string? f) =>

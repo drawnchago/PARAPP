@@ -9,7 +9,7 @@
 
 <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+<div class="nav-scrollable" onclick="if(!event.target.closest('.nav-group-header')) document.querySelector('.navbar-toggler').click()">
     <nav class="nav flex-column">
         @if (Session.IsAuthenticated)
         {
@@ -25,7 +25,7 @@
             }
 
             <div class="nav-item px-3 mt-auto">
-                <button class="nav-link btn btn-link text-start w-100" @onclick="Salir">
+                <button class="nav-link btn btn-link text-start w-100" @onclick="SignOut">
                     <span class="nav-emoji">🚪</span> Salir
                 </button>
             </div>
@@ -66,8 +66,8 @@
             var abierto = expandidos.Contains(modulo.ModuloId);
             <div class="nav-group">
                 <button type="button" class="nav-link nav-group-header"
-                        @onclick="() => ToggleGrupo(modulo.ModuloId)" @onclick:stopPropagation="true">
-                    <span class="nav-emoji">@Ico(modulo.Icono)</span>
+                        @onclick="() => ToggleGroup(modulo.ModuloId)" @onclick:stopPropagation="true">
+                    <span class="nav-emoji">@GetIcon(modulo.Icono)</span>
                     <span class="nav-group-title">@modulo.Nombre</span>
                     <span class="nav-group-caret">@(abierto ? "▾" : "▸")</span>
                 </button>
@@ -86,22 +86,22 @@
         {
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="@modulo.Ruta!.TrimStart('/')">
-                    <span class="nav-emoji">@Ico(modulo.Icono)</span> @modulo.Nombre
+                    <span class="nav-emoji">@GetIcon(modulo.Icono)</span> @modulo.Nombre
                 </NavLink>
             </div>
         }
     </text>;
 
-    private void ToggleGrupo(uint parentId)
+    private void ToggleGroup(uint parentId)
     {
         if (!expandidos.Remove(parentId))
             expandidos.Add(parentId);
     }
 
     // El icono proviene de la base de datos; fallback genérico si viniera vacío.
-    private static string Ico(string? icon) => string.IsNullOrEmpty(icon) ? "📦" : icon;
+    private static string GetIcon(string? icon) => string.IsNullOrEmpty(icon) ? "📦" : icon;
 
-    private void Salir()
+    private void SignOut()
     {
         Session.Logout();
         Nav.NavigateTo("/login");

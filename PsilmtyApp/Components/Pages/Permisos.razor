@@ -212,11 +212,11 @@
     protected override async Task OnInitializedAsync()
     {
         if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
-        todosModulos = await Api.GetTodosModulosAsync();
+        todosModulos = await Api.GetAllModulesAsync();
 
         if (!string.IsNullOrEmpty(UserId) && uint.TryParse(UserId, out var uid))
         {
-            var u = await Api.GetUsuarioPorIdAsync(uid);
+            var u = await Api.GetUserByIdAsync(uid);
             if (u != null) await SeleccionarUsuario(u);
         }
     }
@@ -225,14 +225,14 @@
     {
         var q = e.Value?.ToString() ?? "";
         if (q.Length < 2) { resultadosBusqueda = []; return; }
-        resultadosBusqueda = await Api.BuscarUsuariosAsync(q);
+        resultadosBusqueda = await Api.SearchUsersAsync(q);
     }
 
     private async Task BuscarParaAgregar(ChangeEventArgs e)
     {
         var q = e.Value?.ToString() ?? "";
         if (q.Length < 2) { resultadosAgregar = []; return; }
-        resultadosAgregar = await Api.BuscarUsuariosAsync(q);
+        resultadosAgregar = await Api.SearchUsersAsync(q);
     }
 
     private async Task SeleccionarUsuario(UsuarioDto u)
@@ -242,7 +242,7 @@
         resultadosBusqueda  = [];
         cargandoModulos     = true;
         StateHasChanged();
-        modulosUsuario = await Api.GetModulosByUsuarioAsync(u.Id);
+        modulosUsuario = await Api.GetModulesByUserAsync(u.Id);
         cargandoModulos = false;
     }
 
@@ -268,7 +268,7 @@
             .Where(m => m.CanView)
             .ToDictionary(m => m.Code, m => new { m.CanView, m.CanCreate, m.CanEdit, m.CanDelete });
 
-        await Api.AsignarModulosAUsuarioAsync(usuarioSeleccionado.Id, moduleIds, new()
+        await Api.AssignModulesToUserAsync(usuarioSeleccionado.Id, moduleIds, new()
         {
             View   = modulosUsuario.Any(m => m.CanView),
             Create = modulosUsuario.Any(m => m.CanCreate),
@@ -288,14 +288,14 @@
         moduloSeleccionado       = m;
         cargandoUsuariosModulo   = true;
         StateHasChanged();
-        usuariosConAcceso = await Api.GetUsuariosByModuloAsync(m.ModuleId);
+        usuariosConAcceso = await Api.GetUsersByModuleAsync(m.ModuleId);
         cargandoUsuariosModulo = false;
     }
 
     private async Task AgregarAccesoModulo(UsuarioDto u)
     {
         if (moduloSeleccionado is null) return;
-        await Api.AsignarModulosAUsuarioAsync(u.Id, [moduloSeleccionado.ModuleId], new() { View = true });
+        await Api.AssignModulesToUserAsync(u.Id, [moduloSeleccionado.ModuleId], new() { View = true });
         usuariosConAcceso.Add(u);
         resultadosAgregar = [];
         busquedaAgregar   = "";
@@ -304,7 +304,7 @@
     private async Task QuitarAccesoModulo(UsuarioDto u)
     {
         if (moduloSeleccionado is null) return;
-        await Api.AsignarModulosAUsuarioAsync(u.Id, [], new());
+        await Api.AssignModulesToUserAsync(u.Id, [], new());
         usuariosConAcceso.RemoveAll(x => x.Id == u.Id);
     }
 

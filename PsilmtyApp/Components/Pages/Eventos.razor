@@ -8,7 +8,7 @@
         <h2>📅 Eventos</h2>
         @if (permiso?.PuedeCrear == true)
         {
-            <button class="btn btn-primary" @onclick="AbrirFormulario">+ Nuevo</button>
+            <button class="btn btn-primary" @onclick="OpenForm">+ Nuevo</button>
         }
     </div>
 
@@ -60,7 +60,7 @@
                         @if (permiso?.PuedeEliminar == true)
                         {
                             <button class="btn btn-sm btn-outline-danger"
-                                    @onclick="() => Eliminar(e.Id)">Eliminar</button>
+                                    @onclick="() => Delete(e.Id)">Eliminar</button>
                         }
                     </div>
                 </div>
@@ -71,7 +71,7 @@
 
 @if (mostrarFormulario)
 {
-    <div class="modal-overlay" @onclick="CerrarFormulario">
+    <div class="modal-overlay" @onclick="CloseForm">
         <div class="modal-card" @onclick:stopPropagation>
             <h4>Nuevo Evento</h4>
             <div class="mb-3">
@@ -116,8 +116,8 @@
             }
 
             <div class="d-flex gap-2 justify-content-end">
-                <button class="btn btn-secondary" @onclick="CerrarFormulario">Cancelar</button>
-                <button class="btn btn-primary" @onclick="Guardar" disabled="@guardando">
+                <button class="btn btn-secondary" @onclick="CloseForm">Cancelar</button>
+                <button class="btn btn-primary" @onclick="Save" disabled="@guardando">
                     @(guardando ? "Guardando..." : "Guardar")
                 </button>
             </div>
@@ -137,35 +137,35 @@
     protected override async Task OnInitializedAsync()
     {
         if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
-        permiso = Session.ObtenerPermiso("eventos");
+        permiso = Session.GetPermission("eventos");
         if (permiso?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
-        await Cargar();
+        await Load();
     }
 
-    private async Task Cargar()
+    private async Task Load()
     {
         cargando = true;
-        eventos = await Api.GetEventosAsync();
+        eventos = await Api.GetEventsAsync();
         cargando = false;
     }
 
-    private void AbrirFormulario() { nuevo = new CrearEventoRequest { FechaInicio = DateTime.Now }; errorForm = null; mostrarFormulario = true; }
-    private void CerrarFormulario() => mostrarFormulario = false;
+    private void OpenForm() { nuevo = new CrearEventoRequest { FechaInicio = DateTime.Now }; errorForm = null; mostrarFormulario = true; }
+    private void CloseForm() => mostrarFormulario = false;
 
-    private async Task Guardar()
+    private async Task Save()
     {
         if (string.IsNullOrWhiteSpace(nuevo.Titulo)) { errorForm = "El título es requerido."; return; }
         guardando = true;
-        var result = await Api.CrearEventoAsync(nuevo);
+        var result = await Api.CreateEventAsync(nuevo);
         guardando = false;
         if (result is null) { errorForm = "Error al guardar."; return; }
         mostrarFormulario = false;
-        await Cargar();
+        await Load();
     }
 
-    private async Task Eliminar(uint id)
+    private async Task Delete(uint id)
     {
-        if (await Api.EliminarEventoAsync(id))
-            await Cargar();
+        if (await Api.DeleteEventAsync(id))
+            await Load();
     }
 }

@@ -1,0 +1,68 @@
+@page "/oraciones"
+@inject ApiService Api
+@inject SessionService Session
+@inject NavigationManager Nav
+
+<div class="module-container oraciones-wrap">
+    <div class="module-header">
+        <h2>🙏 Oraciones</h2>
+    </div>
+
+    @if (loading)
+    {
+        <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (!oraciones.Any())
+    {
+        <div class="empty-state">
+            <span class="empty-icon">🙏</span>
+            <p>No hay oraciones disponibles.</p>
+        </div>
+    }
+    else
+    {
+        <div class="oraciones-list">
+            @foreach (var o in oraciones)
+            {
+                var activa = seleccionada?.Filename == o.Filename;
+                <div class="oracion-item @(activa ? "activa" : "")" @onclick="() => Seleccionar(o)">
+                    <span class="oracion-num">@(oraciones.IndexOf(o) + 1)</span>
+                    <span class="oracion-titulo">@o.Title</span>
+                    @if (activa)
+                    {
+                        <span class="oracion-playing">▶</span>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (seleccionada != null)
+{
+    <div class="audio-player-bar">
+        <div class="audio-player-info">
+            <span class="audio-player-icon">🙏</span>
+            <span class="audio-player-title">@seleccionada.Title</span>
+        </div>
+        <audio key="@seleccionada.Filename" src="@seleccionada.Url"
+               controls autoplay class="audio-player-control"></audio>
+        <button class="audio-close-btn" @onclick="Cerrar">✕</button>
+    </div>
+}
+
+@code {
+    private List<OracionDto> oraciones = [];
+    private OracionDto? seleccionada;
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+        oraciones = await Api.GetPrayersAsync();
+        loading = false;
+    }
+
+    private void Seleccionar(OracionDto o) => seleccionada = o;
+    private void Cerrar() => seleccionada = null;
+}

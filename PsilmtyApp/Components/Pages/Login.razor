@@ -89,7 +89,7 @@
 
             <div class="login-switch">
                 ¿No tienes cuenta?
-                <button class="btn-link-inline" @onclick="AbrirRegistro">Regístrate como feligrés</button>
+                <button class="btn-link-inline" @onclick="OpenRegistration">Regístrate como feligrés</button>
             </div>
         }
         else
@@ -272,7 +272,7 @@
         }
 
         // Cargar parroquias para los selectores
-        parroquias = await Api.GetParroquiasPublicasAsync();
+        parroquias = await Api.GetPublicParishesAsync();
         if (parroquias.Count == 0)
             error = "No se pudieron cargar las parroquias. Verifica la conexión con el servidor.";
     }
@@ -297,7 +297,7 @@
         finally { cargando = false; }
     }
 
-    private void AbrirRegistro()
+    private void OpenRegistration()
     {
         modoRegistro = true;
         error = null;
@@ -337,7 +337,7 @@
         cargando = true; StateHasChanged();
         try
         {
-            var (sesion, err) = await Api.RegistrarAsync(reg);
+            var (sesion, err) = await Api.RegisterAsync(reg);
             if (sesion != null)
             {
                 Session.SetSession(sesion);

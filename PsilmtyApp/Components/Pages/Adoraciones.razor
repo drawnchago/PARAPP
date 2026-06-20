@@ -8,7 +8,7 @@
         <h2>🎵 Adoraciones</h2>
         @if (permiso?.PuedeCrear == true)
         {
-            <button class="btn btn-primary" @onclick="AbrirFormulario">+ Nueva</button>
+            <button class="btn btn-primary" @onclick="OpenForm">+ Nueva</button>
         }
     </div>
 
@@ -59,7 +59,7 @@
                         @if (permiso?.PuedeEliminar == true)
                         {
                             <button class="btn btn-sm btn-outline-danger"
-                                    @onclick="() => Eliminar(a.Id)">Eliminar</button>
+                                    @onclick="() => Delete(a.Id)">Eliminar</button>
                         }
                     </div>
                 </div>
@@ -70,7 +70,7 @@
 
 @if (mostrarFormulario)
 {
-    <div class="modal-overlay" @onclick="CerrarFormulario">
+    <div class="modal-overlay" @onclick="CloseForm">
         <div class="modal-card" @onclick:stopPropagation>
             <h4>Nueva Adoración</h4>
 
@@ -109,8 +109,8 @@
             }
 
             <div class="d-flex gap-2 justify-content-end">
-                <button class="btn btn-secondary" @onclick="CerrarFormulario">Cancelar</button>
-                <button class="btn btn-primary" @onclick="Guardar" disabled="@guardando">
+                <button class="btn btn-secondary" @onclick="CloseForm">Cancelar</button>
+                <button class="btn btn-primary" @onclick="Save" disabled="@guardando">
                     @(guardando ? "Guardando..." : "Guardar")
                 </button>
             </div>
@@ -130,28 +130,28 @@
     protected override async Task OnInitializedAsync()
     {
         if (!Session.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
-        permiso = Session.ObtenerPermiso("adoraciones");
+        permiso = Session.GetPermission("adoraciones");
         if (permiso?.PuedeVer != true) { Nav.NavigateTo("/"); return; }
-        await Cargar();
+        await Load();
     }
 
-    private async Task Cargar()
+    private async Task Load()
     {
         cargando = true;
-        adoraciones = await Api.GetAdoracionesAsync();
+        adoraciones = await Api.GetAdorationsAsync();
         cargando = false;
     }
 
-    private void AbrirFormulario()
+    private void OpenForm()
     {
         nuevo = new CrearAdoracionRequest { Fecha = DateTime.Now };
         errorForm = null;
         mostrarFormulario = true;
     }
 
-    private void CerrarFormulario() => mostrarFormulario = false;
+    private void CloseForm() => mostrarFormulario = false;
 
-    private async Task Guardar()
+    private async Task Save()
     {
         if (string.IsNullOrWhiteSpace(nuevo.Titulo))
         {
@@ -159,16 +159,16 @@
             return;
         }
         guardando = true;
-        var result = await Api.CrearAdoracionAsync(nuevo);
+        var result = await Api.CreateAdorationAsync(nuevo);
         guardando = false;
         if (result is null) { errorForm = "Error al guardar. Intenta de nuevo."; return; }
         mostrarFormulario = false;
-        await Cargar();
+        await Load();
     }
 
-    private async Task Eliminar(uint id)
+    private async Task Delete(uint id)
     {
-        if (await Api.EliminarAdoracionAsync(id))
-            await Cargar();
+        if (await Api.DeleteAdorationAsync(id))
+            await Load();
     }
 }

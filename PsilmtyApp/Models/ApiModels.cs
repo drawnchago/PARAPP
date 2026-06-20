@@ -724,6 +724,14 @@ namespace PsilmtyApp.Models
         public decimal? Donation { get; set; }
     }
 
+    // ── Oraciones ─────────────────────────────────────────
+    public class OracionDto
+    {
+        public string Filename { get; set; } = "";
+        public string Title { get; set; } = "";
+        public string Url { get; set; } = "";
+    }
+
     // ── Solicitudes ───────────────────────────────────────────
     public class SolicitudDto
     {

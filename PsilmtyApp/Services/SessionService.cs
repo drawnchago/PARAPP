@@ -24,7 +24,7 @@ namespace PsilmtyApp.Services
         public bool TieneAcceso(string moduloClave) =>
             Session?.Modulos.Any(m => m.Clave == moduloClave && m.PuedeVer) ?? false;
 
-        public ModuloPermiso? ObtenerPermiso(string clave) =>
+        public ModuloPermiso? GetPermission(string clave) =>
             Session?.Modulos.FirstOrDefault(m => m.Clave == clave);
 
         private void NotifyChange() => OnChange?.Invoke();
