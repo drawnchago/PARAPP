@@ -11,6 +11,8 @@ namespace PsilmtyApi.Controllers;
 [Route("api/alexa")]
 public sealed class AlexaController(IApplicationDataService service) : ControllerBase
 {
+    private const uint ParishId = 1;
+
     private static readonly string[] DayNames   = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
     private static readonly string[] MonthNames = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
         "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
@@ -19,7 +21,7 @@ public sealed class AlexaController(IApplicationDataService service) : Controlle
     public async Task<IActionResult> Handle([FromBody] AlexaRequest request) =>
         request.Request.Type switch
         {
-            "LaunchRequest"       => Ok(AlexaResponse.Say("Bienvenido a la parroquia San Isidro Monterrey. ¿En qué puedo ayudarte?")),
+            "LaunchRequest"       => Ok(AlexaResponse.Say("Bienvenido a la parroquia San Isidro Monterrey. Puedes preguntarme por noticias, horarios, misas, eventos o datos de contacto. ¿En qué puedo ayudarte?")),
             "IntentRequest"       => Ok(await HandleIntent(request)),
             "SessionEndedRequest" => Ok(AlexaResponse.Say("Hasta luego.", endSession: true)),
             _                     => Ok(AlexaResponse.Say("No entendí tu solicitud. Intenta de nuevo."))
@@ -38,23 +40,53 @@ public sealed class AlexaController(IApplicationDataService service) : Controlle
     private async Task<AlexaResponse> HandleIntent(AlexaRequest request) =>
         (request.Request.IntentName ?? "") switch
         {
+            // Noticias
             "NoticiasPSILMTY" or
-            "ObtenerNoticias"         => await NewsIntent(),
-            "ObtenerHorarios"         => await SchedulesIntent(),
-            "ObtenerEventos"          => await CalendarIntent(type: null),
-            "ObtenerMisas"            => await CalendarIntent(type: "mass"),
-            "HabraMisaHoy"            => await MassesTodayIntent(),
-            "ProximaMisa"             => await NextMassIntent(),
-            "HabraMisaHora"           => await MassByHourIntent(request),
+            "ObtenerNoticias" or
+            "UltimasNoticias"             => await NewsIntent(),
+
+            // Horarios de parroquia
+            "ObtenerHorarios" or
+            "HorariosParroquia"           => await SchedulesIntent(),
+
+            // Misas
+            "ObtenerMisas"                => await CalendarIntent(type: "mass"),
+            "HabraMisaHoy" or
+            "HorariosMisaHoy"             => await MassesTodayIntent(),
+            "ProximaMisa" or
+            "CuandoProximaMisa"           => await NextMassIntent(),
+            "HabraMisaHora"               => await MassByHourIntent(request),
+
+            // Eventos y agenda
+            "ObtenerEventos" or
+            "ProximosEventos" or
+            "ActividadesSemana" or
+            "AgendaParroquial"            => await CalendarIntent(type: null),
+            "AgendaHoy" or
+            "QueHayHoy"                   => await AgendaIntent(DateOnly.FromDateTime(DateTime.Now)),
+            "AgendaManana" or
+            "ActividadesManana"           => await AgendaIntent(DateOnly.FromDateTime(DateTime.Now.AddDays(1))),
+
+            // Contacto
+            "ContactoParroquia" or
+            "TelefonoParroquia" or
+            "DireccionParroquia" or
+            "ComoContactar"               => await ContactIntent(),
+
+            // Built-in de Alexa
             "AMAZON.StopIntent" or
-            "AMAZON.CancelIntent"     => AlexaResponse.Say("Hasta luego.", endSession: true),
-            "AMAZON.HelpIntent"       => AlexaResponse.Say("Puedes preguntarme por las noticias, horarios, misas de hoy o próximos eventos."),
-            _                         => AlexaResponse.Say("No conozco esa acción. Intenta preguntarme por noticias, horarios o misas.")
+            "AMAZON.CancelIntent"         => AlexaResponse.Say("Hasta luego.", endSession: true),
+            "AMAZON.HelpIntent"           => AlexaResponse.Say(
+                "Puedes decirme: dame las noticias, horarios de misa, próxima misa, qué hay hoy, qué eventos hay, o dirección de la parroquia."),
+
+            _ => AlexaResponse.Say("No conozco esa acción. Intenta preguntarme por noticias, horarios, misas o eventos.")
         };
+
+    // ── Intents ──────────────────────────────────────────────────────────────
 
     private async Task<AlexaResponse> NewsIntent()
     {
-        var news = await service.GetAlexaNewsAsync(parishId: 1, from: null, to: null);
+        var news = await service.GetAlexaNewsAsync(ParishId, from: null, to: null);
         if (!news.Any())
             return AlexaResponse.Say("No hay noticias disponibles en este momento.");
 
@@ -64,7 +96,7 @@ public sealed class AlexaController(IApplicationDataService service) : Controlle
 
     private async Task<AlexaResponse> SchedulesIntent()
     {
-        var rows = await service.GetAlexaSchedulesAsync(parishId: 1);
+        var rows = await service.GetAlexaSchedulesAsync(ParishId);
         if (!rows.Any())
             return AlexaResponse.Say("No encontré horarios registrados para esta parroquia.");
 
@@ -86,7 +118,7 @@ public sealed class AlexaController(IApplicationDataService service) : Controlle
 
     private async Task<AlexaResponse> CalendarIntent(string? type)
     {
-        var events = await service.GetAlexaCalendarAsync(parishId: 1, type: type);
+        var events = await service.GetAlexaCalendarAsync(ParishId, type);
         if (!events.Any())
         {
             var label = type == "mass" ? "misas" : "eventos";
@@ -95,7 +127,7 @@ public sealed class AlexaController(IApplicationDataService service) : Controlle
 
         var parts = events.Select(e =>
         {
-            var dt = (DateTime)e.StartDatetime;
+            var dt      = (DateTime)e.StartDatetime;
             var dateStr = $"el {DayNames[(int)dt.DayOfWeek]} {dt.Day} de {MonthNames[dt.Month - 1]}";
             var timeStr = (bool)e.AllDay ? "" : $" a {FormatTime(dt.ToString("HH:mm"))}";
             return $"{e.Title}{timeStr} {dateStr}";
@@ -105,9 +137,27 @@ public sealed class AlexaController(IApplicationDataService service) : Controlle
         return AlexaResponse.Say(intro + string.Join(". ", parts) + ".");
     }
 
+    private async Task<AlexaResponse> AgendaIntent(DateOnly date)
+    {
+        var events  = await service.GetAlexaAgendaAsync(ParishId, date);
+        var label   = date == DateOnly.FromDateTime(DateTime.Now) ? "hoy" : "mañana";
+
+        if (!events.Any())
+            return AlexaResponse.Say($"No hay actividades registradas para {label}.");
+
+        var parts = events.Select(e =>
+        {
+            var dt      = (DateTime)e.StartDatetime;
+            var timeStr = (bool)e.AllDay ? "" : $" a {FormatTime(dt.ToString("HH:mm"))}";
+            return $"{e.Title}{timeStr}";
+        });
+
+        return AlexaResponse.Say($"Las actividades de {label} son: " + string.Join(". ", parts) + ".");
+    }
+
     private async Task<AlexaResponse> MassesTodayIntent()
     {
-        var masses = await service.GetAlexaMassesTodayAsync(parishId: 1);
+        var masses = await service.GetAlexaMassesTodayAsync(ParishId);
         if (!masses.Any())
             return AlexaResponse.Say("No hay misas programadas para hoy.");
 
@@ -122,13 +172,12 @@ public sealed class AlexaController(IApplicationDataService service) : Controlle
 
     private async Task<AlexaResponse> NextMassIntent()
     {
-        var mass = await service.GetAlexaNextMassAsync(parishId: 1);
+        var mass = await service.GetAlexaNextMassAsync(ParishId);
         if (mass == null)
             return AlexaResponse.Say("No encontré misas próximas registradas.");
 
-        var dt = (DateTime)mass.StartDatetime;
-        var dayName  = DayNames[(int)dt.DayOfWeek];
-        var dateStr  = $"el {dayName} {dt.Day} de {MonthNames[dt.Month - 1]}";
+        var dt       = (DateTime)mass.StartDatetime;
+        var dateStr  = $"el {DayNames[(int)dt.DayOfWeek]} {dt.Day} de {MonthNames[dt.Month - 1]}";
         var timeStr  = (bool)mass.AllDay ? "" : $" a {FormatTime(dt.ToString("HH:mm"))}";
         var location = mass.Location != null ? $" en {mass.Location}" : "";
 
@@ -141,7 +190,7 @@ public sealed class AlexaController(IApplicationDataService service) : Controlle
         if (slotValue == null || !int.TryParse(slotValue, out var hour))
             return AlexaResponse.Say("No entendí la hora. Por favor dime la hora de la misa.");
 
-        var masses = await service.GetAlexaMassesTodayAsync(parishId: 1);
+        var masses = await service.GetAlexaMassesTodayAsync(ParishId);
         var match  = masses.FirstOrDefault(m =>
             !((bool)m.AllDay) && ((DateTime)m.StartDatetime).Hour == hour);
 
@@ -150,6 +199,34 @@ public sealed class AlexaController(IApplicationDataService service) : Controlle
             ? AlexaResponse.Say($"Sí, hay misa a {FormatTime(((DateTime)match.StartDatetime).ToString("HH:mm"))} hoy.")
             : AlexaResponse.Say($"No encontré misa a {hourFormatted} hoy.");
     }
+
+    private async Task<AlexaResponse> ContactIntent()
+    {
+        var parish = await service.GetAlexaParishContactAsync(ParishId);
+        if (parish == null)
+            return AlexaResponse.Say("No encontré información de contacto de la parroquia.");
+
+        var parts = new List<string>();
+
+        if (parish.Phone != null)
+            parts.Add($"el teléfono es {parish.Phone}");
+
+        if (parish.Address != null)
+            parts.Add($"la dirección es {parish.Address}, {parish.City}");
+
+        if (parish.Email != null)
+            parts.Add($"el correo es {parish.Email}");
+
+        if (parish.Website != null)
+            parts.Add($"el sitio web es {parish.Website}");
+
+        if (!parts.Any())
+            return AlexaResponse.Say("No hay datos de contacto registrados para la parroquia.");
+
+        return AlexaResponse.Say($"Para contactar a la parroquia {parish.Name}: " + string.Join(". ", parts) + ".");
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
 
     private static string FormatTime(string hhmm)
     {

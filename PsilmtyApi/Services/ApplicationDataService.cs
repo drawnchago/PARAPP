@@ -59,6 +59,26 @@ public sealed class ApplicationDataService(
             LIMIT 5
             """, new { ParishId = parishId, Type = type });
 
+    public async Task<dynamic?> GetAlexaParishContactAsync(uint parishId) =>
+        (await repository.QueryAsync<dynamic>("""
+            SELECT name Name, phone Phone, email Email, address Address,
+                   city City, website Website, patron_saint PatronSaint
+            FROM parishes
+            WHERE id = @ParishId AND status = 1
+            """, new { ParishId = parishId })).FirstOrDefault();
+
+    public async Task<IReadOnlyList<dynamic>> GetAlexaAgendaAsync(uint parishId, DateOnly date) =>
+        await repository.QueryAsync<dynamic>("""
+            SELECT title Title, type Type, start_datetime StartDatetime,
+                   all_day AllDay, location Location
+            FROM calendar
+            WHERE parish_id = @ParishId
+              AND status = 1
+              AND is_visible = 1
+              AND DATE(start_datetime) = @Date
+            ORDER BY start_datetime
+            """, new { ParishId = parishId, Date = date.ToString("yyyy-MM-dd") });
+
     public async Task<IReadOnlyList<dynamic>> GetAlexaMassesTodayAsync(uint parishId) =>
         await repository.QueryAsync<dynamic>("""
             SELECT title Title, start_datetime StartDatetime, end_datetime EndDatetime,
