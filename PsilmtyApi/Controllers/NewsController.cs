@@ -13,8 +13,10 @@ namespace PsilmtyApi.Controllers;
 public sealed class NewsController(IApplicationDataService service, IDatabaseRepository repository) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> Get([FromQuery] string q = "") =>
-        Ok(await service.GetNewsAsync(User.GetParishId(), q));
+    public async Task<IActionResult> Get([FromQuery] string q = "", [FromQuery] DateOnly? from = null, [FromQuery] DateOnly? to = null) =>
+        Ok(await service.GetNewsAsync(User.GetParishId(), q,
+            from?.ToDateTime(TimeOnly.MinValue),
+            to?.ToDateTime(TimeOnly.MaxValue)));
 
     [HttpGet("categorias")]
     public async Task<IActionResult> GetCategories() =>

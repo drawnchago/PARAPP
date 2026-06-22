@@ -9,7 +9,7 @@ public sealed class ApplicationDataService(
     IDatabaseRepository repository,
     INotificationService notificationService) : IApplicationDataService
 {
-    public async Task<IReadOnlyList<dynamic>> GetNewsAsync(uint parishId, string query) =>
+    public async Task<IReadOnlyList<dynamic>> GetNewsAsync(uint parishId, string query, DateTime? from = null, DateTime? to = null) =>
         await repository.QueryAsync<dynamic>("""
             SELECT n.id Id, n.title Title, n.summary Summary, n.content Content, n.image_url ImageUrl,
                    n.category_id CategoryId, c.name CategoryName,
@@ -21,8 +21,75 @@ public sealed class ApplicationDataService(
             LEFT JOIN users u ON u.id = n.author_id
             WHERE n.parish_id = @ParishId AND n.status = 1
               AND (@Query = '' OR n.title LIKE CONCAT('%', @Query, '%'))
+              AND (@From IS NULL OR COALESCE(n.published_at, n.created_at) >= @From)
+              AND (@To IS NULL OR COALESCE(n.published_at, n.created_at) <= @To)
             ORDER BY COALESCE(n.published_at, n.created_at) DESC
-            """, new { ParishId = parishId, Query = query });
+            """, new { ParishId = parishId, Query = query, From = from, To = to });
+
+    public async Task<IReadOnlyList<dynamic>> GetAlexaNewsAsync(uint parishId, DateTime? from, DateTime? to) =>
+        await repository.QueryAsync<dynamic>("""
+            SELECT n.id Id, n.title Title, n.summary Summary, n.content Content, n.image_url ImageUrl,
+                   c.name CategoryName,
+                   CONCAT_WS(' ', u.first_name, u.last_name) AuthorName,
+                   n.published_at PublishedAt, n.is_featured IsFeatured
+            FROM news n
+            LEFT JOIN news_categories c ON c.id = n.category_id
+            LEFT JOIN users u ON u.id = n.author_id
+            WHERE n.parish_id = @ParishId
+              AND n.status = 1
+              AND n.is_published = 1
+              AND n.published_at <= NOW()
+              AND (@From IS NULL OR n.published_at >= @From)
+              AND (@To IS NULL OR n.published_at <= @To)
+            ORDER BY n.published_at DESC
+            """, new { ParishId = parishId, From = from, To = to });
+
+    public async Task<IReadOnlyList<dynamic>> GetAlexaCalendarAsync(uint parishId, string? type = null) =>
+        await repository.QueryAsync<dynamic>("""
+            SELECT title Title, description Description, type Type,
+                   start_datetime StartDatetime, end_datetime EndDatetime,
+                   all_day AllDay, location Location
+            FROM calendar
+            WHERE parish_id = @ParishId
+              AND status = 1
+              AND is_visible = 1
+              AND start_datetime >= NOW()
+              AND (@Type IS NULL OR type = @Type)
+            ORDER BY start_datetime
+            LIMIT 5
+            """, new { ParishId = parishId, Type = type });
+
+    public async Task<IReadOnlyList<dynamic>> GetAlexaMassesTodayAsync(uint parishId) =>
+        await repository.QueryAsync<dynamic>("""
+            SELECT title Title, start_datetime StartDatetime, end_datetime EndDatetime,
+                   all_day AllDay, location Location
+            FROM calendar
+            WHERE parish_id = @ParishId AND status = 1 AND is_visible = 1
+              AND type = 'mass'
+              AND DATE(start_datetime) = CURDATE()
+            ORDER BY start_datetime
+            """, new { ParishId = parishId });
+
+    public async Task<dynamic?> GetAlexaNextMassAsync(uint parishId) =>
+        (await repository.QueryAsync<dynamic>("""
+            SELECT title Title, start_datetime StartDatetime, all_day AllDay, location Location
+            FROM calendar
+            WHERE parish_id = @ParishId AND status = 1 AND is_visible = 1
+              AND type = 'mass'
+              AND start_datetime >= NOW()
+            ORDER BY start_datetime
+            LIMIT 1
+            """, new { ParishId = parishId })).FirstOrDefault();
+
+    public async Task<IReadOnlyList<dynamic>> GetAlexaSchedulesAsync(uint parishId) =>
+        await repository.QueryAsync<dynamic>("""
+            SELECT day_of_week DayOfWeek, is_closed IsClosed,
+                   TIME_FORMAT(open_time, '%H:%i') OpenTime,
+                   TIME_FORMAT(close_time, '%H:%i') CloseTime
+            FROM parish_schedules
+            WHERE parish_id = @ParishId AND status = 1
+            ORDER BY day_of_week, sort_order
+            """, new { ParishId = parishId });
 
     public async Task<dynamic> SaveNewsAsync(uint? id, uint parishId, uint userId, NewsRequest request)
     {
