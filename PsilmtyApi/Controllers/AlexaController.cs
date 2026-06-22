@@ -38,14 +38,18 @@ public sealed class AlexaController(IApplicationDataService service) : Controlle
     private async Task<AlexaResponse> HandleIntent(AlexaRequest request) =>
         (request.Request.IntentName ?? "") switch
         {
-            "ObtenerNoticias" => await NewsIntent(),
-            "ObtenerHorarios" => await SchedulesIntent(),
-            "ObtenerEventos"  => await CalendarIntent(type: null),
-            "ObtenerMisas"    => await CalendarIntent(type: "mass"),
-            "HabraMisaHoy"    => await MassesTodayIntent(),
-            "ProximaMisa"     => await NextMassIntent(),
-            "HabraMisaHora"   => await MassByHourIntent(request),
-            _                 => AlexaResponse.Say("No conozco esa acción todavía.")
+            "NoticiasPSILMTY" or
+            "ObtenerNoticias"         => await NewsIntent(),
+            "ObtenerHorarios"         => await SchedulesIntent(),
+            "ObtenerEventos"          => await CalendarIntent(type: null),
+            "ObtenerMisas"            => await CalendarIntent(type: "mass"),
+            "HabraMisaHoy"            => await MassesTodayIntent(),
+            "ProximaMisa"             => await NextMassIntent(),
+            "HabraMisaHora"           => await MassByHourIntent(request),
+            "AMAZON.StopIntent" or
+            "AMAZON.CancelIntent"     => AlexaResponse.Say("Hasta luego.", endSession: true),
+            "AMAZON.HelpIntent"       => AlexaResponse.Say("Puedes preguntarme por las noticias, horarios, misas de hoy o próximos eventos."),
+            _                         => AlexaResponse.Say("No conozco esa acción. Intenta preguntarme por noticias, horarios o misas.")
         };
 
     private async Task<AlexaResponse> NewsIntent()
