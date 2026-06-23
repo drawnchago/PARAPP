@@ -1,0 +1,16 @@
+C:\PARAPP : El t‚rmino 'C:\PARAPP' no se 
+reconoce como nombre de un cmdlet, funci¢n, 
+archivo de script o programa ejecutable. 
+Compruebe si escribi¢ correctamente el nombre 
+o, si incluy¢ una ruta de acceso, compruebe que 
+dicha ruta es correcta e int‚ntelo de nuevo.
+En l¡nea: 1 Car cter: 1
++ C:\PARAPP -Online -Name 
+OpenSSH.Client~~~~0.0.1.0
++ ~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: ( 
+   C:\PARAPP:String) [], CommandNotFoundExcept  
+  ion
+    + FullyQualifiedErrorId : CommandNotFoundEx 
+   ception
+ 

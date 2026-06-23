@@ -46,8 +46,10 @@ public sealed class AlexaController(IApplicationDataService service) : Controlle
             "UltimasNoticias"             => await NewsIntent(),
 
             // Horarios de parroquia
+            "horarios" or
+            "HorarioMisas" or
             "ObtenerHorarios" or
-            "HorariosParroquia"           => await SchedulesIntent(),
+            "HorariosParroquia" => await SchedulesIntent(),
 
             // Misas
             "ObtenerMisas"                => await CalendarIntent(type: "mass"),
@@ -59,6 +61,7 @@ public sealed class AlexaController(IApplicationDataService service) : Controlle
 
             // Eventos y agenda
             "ObtenerEventos" or
+            "eventos" or
             "ProximosEventos" or
             "ActividadesSemana" or
             "AgendaParroquial"            => await CalendarIntent(type: null),

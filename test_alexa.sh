@@ -1,0 +1,22 @@
+#!/bin/bash
+BASE="http://127.0.0.1:5001"
+post() { curl -s -X POST "$BASE/api/alexa" -H "Content-Type: application/json" -d "{\"version\":\"1.0\",\"session\":{},\"request\":{\"type\":\"IntentRequest\",\"intent\":{\"name\":\"$1\"}}}" | python3 -m json.tool; echo ""; }
+
+echo "=== NoticiasPSILMTY ==="
+post "NoticiasPSILMTY"
+echo "=== UltimasNoticias ==="
+post "UltimasNoticias"
+echo "=== HorariosParroquia ==="
+post "HorariosParroquia"
+echo "=== AgendaHoy ==="
+post "AgendaHoy"
+echo "=== AgendaManana ==="
+post "AgendaManana"
+echo "=== AgendaParroquial ==="
+post "AgendaParroquial"
+echo "=== ContactoParroquia ==="
+post "ContactoParroquia"
+echo "=== AMAZON.HelpIntent ==="
+post "AMAZON.HelpIntent"
+echo "=== AMAZON.StopIntent ==="
+post "AMAZON.StopIntent"
